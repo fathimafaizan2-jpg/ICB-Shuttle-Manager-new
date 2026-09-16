@@ -1,5 +1,5 @@
 import express from "express";
-import mongoose from "mongoose";
+import admin from "firebase-admin";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
@@ -16,39 +16,39 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const FLIGHT_NAMES = ["Premier Flight","Flight 1","Flight 2","Flight 3","Flight 4A","Flight 4B"];
 
 /* ===================================================================
-   DATABASE
-   One document per flight. Nothing in one flight's document ever
-   references another — there is no query capable of crossing flights.
+   DATABASE — Firestore
+   One document per flight, in the "flights" collection, doc ID = the
+   flight name. No query in this file ever reads more than one doc at
+   a time, so a token for one flight can never surface another's data.
    =================================================================== */
-await mongoose.connect(process.env.MONGODB_URI);
-
-const flightSchema = new mongoose.Schema({
-  flightName: { type: String, required: true, unique: true },
-  pinHash: { type: String, default: null },
-  adminName: { type: String, default: "" },
-  tubePriceFils: { type: Number, default: 14500 },
-  shuttlesPerTube: { type: Number, default: 12 },
-  members: [{ id: String, name: String, active: { type: Boolean, default: true } }],
-  sessions: [{
-    id: String, date: String, shuttlesUsed: Number, presentIds: [String],
-    totalCostFils: Number, shares: mongoose.Schema.Types.Mixed, createdAt: String
-  }],
-  paid: { type: mongoose.Schema.Types.Mixed, default: {} }
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
+  })
 });
-const Flight = mongoose.model("Flight", flightSchema);
+const db = admin.firestore();
+const flights = db.collection("flights");
+
+const DEFAULT_FLIGHT = {
+  pinHash: null, adminName: "", tubePriceFils: 14500, shuttlesPerTube: 12,
+  members: [], sessions: [], paid: {}
+};
 
 async function getOrCreateFlight(name){
-  let fl = await Flight.findOne({ flightName: name });
-  if(!fl) fl = await Flight.create({ flightName: name });
-  return fl;
+  const ref = flights.doc(name);
+  const snap = await ref.get();
+  if(!snap.exists){
+    await ref.set(DEFAULT_FLIGHT);
+    return { ref, data: { ...DEFAULT_FLIGHT } };
+  }
+  return { ref, data: snap.data() };
 }
 
 /* ===================================================================
-   CORE CALCULATION — authoritative on the server, never trusted from
-   the client. Same rules as before: whole fils, remainder handed out
-   one at a time so shares always sum to exactly the day cost.
+   CORE CALCULATION — same rules as before, authoritative on the server.
    =================================================================== */
-const FILS = 1000;
 function pricePerShuttleFils(tubePriceFils, shuttlesPerTube){ return tubePriceFils / shuttlesPerTube; }
 function dayCostFils(tubePriceFils, shuttlesPerTube, used){
   return Math.round(used * pricePerShuttleFils(tubePriceFils, shuttlesPerTube));
@@ -62,18 +62,16 @@ function splitShares(totalFils, presentIds){
   ids.forEach((id,i) => { shares[id] = base + (i < remainder ? 1 : 0); });
   return shares;
 }
-function outstandingFils(fl, memberId){
-  return fl.sessions.reduce((sum,s) => {
+function outstandingFils(data, memberId){
+  return data.sessions.reduce((sum,s) => {
     const share = s.shares[memberId];
     if(!share) return sum;
-    return fl.paid[`${s.id}_${memberId}`] ? sum : sum + share;
+    return data.paid[`${s.id}_${memberId}`] ? sum : sum + share;
   }, 0);
 }
-
-function publicFlight(fl){
-  // Never send the PIN hash to the browser.
-  const { pinHash, ...rest } = fl.toObject();
-  return { ...rest, hasPin: !!pinHash };
+function publicFlight(name, data){
+  const { pinHash, ...rest } = data;
+  return { flightName: name, ...rest, hasPin: !!pinHash };
 }
 
 /* ===================================================================
@@ -84,8 +82,7 @@ function authMiddleware(req, res, next){
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
   if(!token) return res.status(401).json({ message: "Not signed in." });
   try{
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.flightName = payload.flightName;
+    req.flightName = jwt.verify(token, JWT_SECRET).flightName;
     next();
   }catch{
     res.status(401).json({ message: "Session expired — please sign in again." });
@@ -99,83 +96,80 @@ app.post("/api/login", async (req, res) => {
   if(!FLIGHT_NAMES.includes(flightName)) return res.status(400).json({ message: "Unknown flight." });
   if(!/^\d{4,6}$/.test(pin || "")) return res.status(400).json({ message: "PIN must be 4–6 digits." });
 
-  const fl = await getOrCreateFlight(flightName);
+  const { ref, data } = await getOrCreateFlight(flightName);
 
-  if(!fl.pinHash){
-    fl.pinHash = await bcrypt.hash(pin, 10);
-    await fl.save();
+  if(!data.pinHash){
+    data.pinHash = await bcrypt.hash(pin, 10);
+    await ref.set(data);
   }else{
-    const ok = await bcrypt.compare(pin, fl.pinHash);
+    const ok = await bcrypt.compare(pin, data.pinHash);
     if(!ok) return res.status(401).json({ message: "Incorrect PIN." });
   }
 
   const token = jwt.sign({ flightName }, JWT_SECRET, { expiresIn: "30d" });
-  res.json({ token, flight: publicFlight(fl) });
+  res.json({ token, flight: publicFlight(flightName, data) });
 });
 
-/* Every route below this line requires a valid token, and every query
-   is filtered to req.flightName — there is no route that can return
-   another flight's document. */
 app.use("/api", authMiddleware);
 
 app.get("/api/flight", async (req, res) => {
-  const fl = await getOrCreateFlight(req.flightName);
-  res.json(publicFlight(fl));
+  const { data } = await getOrCreateFlight(req.flightName);
+  res.json(publicFlight(req.flightName, data));
 });
 
 app.post("/api/flight/settings", async (req, res) => {
   const { adminName, tubePriceFils, shuttlesPerTube } = req.body;
   if(!(tubePriceFils > 0)) return res.status(400).json({ message: "Enter a tube price greater than zero." });
   if(!(shuttlesPerTube > 0)) return res.status(400).json({ message: "Enter how many shuttles are in a tube." });
-  const fl = await getOrCreateFlight(req.flightName);
-  fl.adminName = String(adminName || "").trim();
-  fl.tubePriceFils = Math.round(tubePriceFils);
-  fl.shuttlesPerTube = Math.round(shuttlesPerTube);
-  await fl.save();
-  res.json(publicFlight(fl));
+  const { ref, data } = await getOrCreateFlight(req.flightName);
+  data.adminName = String(adminName || "").trim();
+  data.tubePriceFils = Math.round(tubePriceFils);
+  data.shuttlesPerTube = Math.round(shuttlesPerTube);
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data));
 });
 
 app.post("/api/flight/pin", async (req, res) => {
   const { oldPin, newPin } = req.body;
   if(!/^\d{4,6}$/.test(newPin || "")) return res.status(400).json({ message: "New PIN must be 4–6 digits." });
-  const fl = await getOrCreateFlight(req.flightName);
-  const ok = await bcrypt.compare(oldPin || "", fl.pinHash);
+  const { ref, data } = await getOrCreateFlight(req.flightName);
+  const ok = await bcrypt.compare(oldPin || "", data.pinHash);
   if(!ok) return res.status(401).json({ message: "Current PIN is incorrect." });
-  fl.pinHash = await bcrypt.hash(newPin, 10);
-  await fl.save();
+  data.pinHash = await bcrypt.hash(newPin, 10);
+  await ref.set(data);
   res.json({ success: true });
 });
 
 app.post("/api/members", async (req, res) => {
   const name = String(req.body.name || "").trim();
   if(!name) return res.status(400).json({ message: "Type a name first." });
-  const fl = await getOrCreateFlight(req.flightName);
-  if(fl.members.some(m => m.name.toLowerCase() === name.toLowerCase())){
+  const { ref, data } = await getOrCreateFlight(req.flightName);
+  if(data.members.some(m => m.name.toLowerCase() === name.toLowerCase())){
     return res.status(409).json({ message: "That name is already in this flight." });
   }
-  fl.members.push({ id: "m" + Date.now().toString(36) + Math.random().toString(36).slice(2,6), name, active:true });
-  await fl.save();
-  res.json(publicFlight(fl));
+  data.members.push({ id: "m" + Date.now().toString(36) + Math.random().toString(36).slice(2,6), name, active:true });
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data));
 });
 
 app.patch("/api/members/:id/toggle", async (req, res) => {
-  const fl = await getOrCreateFlight(req.flightName);
-  const m = fl.members.find(x => x.id === req.params.id);
+  const { ref, data } = await getOrCreateFlight(req.flightName);
+  const m = data.members.find(x => x.id === req.params.id);
   if(!m) return res.status(404).json({ message: "Member not found." });
   m.active = !m.active;
-  await fl.save();
-  res.json(publicFlight(fl));
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data));
 });
 
 app.patch("/api/members/:id/rename", async (req, res) => {
   const name = String(req.body.name || "").trim();
   if(!name) return res.status(400).json({ message: "Name required." });
-  const fl = await getOrCreateFlight(req.flightName);
-  const m = fl.members.find(x => x.id === req.params.id);
+  const { ref, data } = await getOrCreateFlight(req.flightName);
+  const m = data.members.find(x => x.id === req.params.id);
   if(!m) return res.status(404).json({ message: "Member not found." });
   m.name = name;
-  await fl.save();
-  res.json(publicFlight(fl));
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data));
 });
 
 app.post("/api/sessions", async (req, res) => {
@@ -184,53 +178,49 @@ app.post("/api/sessions", async (req, res) => {
   if(!Number.isInteger(shuttlesUsed) || shuttlesUsed <= 0) return res.status(400).json({ message: "Enter how many shuttles were used." });
   if(!Array.isArray(presentIds) || !presentIds.length) return res.status(400).json({ message: "Mark at least one player present." });
 
-  const fl = await getOrCreateFlight(req.flightName);
-  const total = dayCostFils(fl.tubePriceFils, fl.shuttlesPerTube, shuttlesUsed);
+  const { ref, data } = await getOrCreateFlight(req.flightName);
+  const total = dayCostFils(data.tubePriceFils, data.shuttlesPerTube, shuttlesUsed);
   const shares = splitShares(total, presentIds);
 
-  fl.sessions.push({
+  data.sessions.push({
     id: "s" + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
     date, shuttlesUsed, presentIds, totalCostFils: total, shares,
     createdAt: new Date().toISOString()
   });
-  await fl.save();
-  res.json(publicFlight(fl));
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data));
 });
 
 app.delete("/api/sessions/:id", async (req, res) => {
-  const fl = await getOrCreateFlight(req.flightName);
-  fl.sessions = fl.sessions.filter(s => s.id !== req.params.id);
-  const paid = { ...fl.paid };
-  Object.keys(paid).forEach(k => { if(k.startsWith(req.params.id + "_")) delete paid[k]; });
-  fl.paid = paid;
-  await fl.save();
-  res.json(publicFlight(fl));
+  const { ref, data } = await getOrCreateFlight(req.flightName);
+  data.sessions = data.sessions.filter(s => s.id !== req.params.id);
+  Object.keys(data.paid).forEach(k => { if(k.startsWith(req.params.id + "_")) delete data.paid[k]; });
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data));
 });
 
 app.post("/api/payments/:sessionId/:memberId/pay", async (req, res) => {
-  const fl = await getOrCreateFlight(req.flightName);
-  fl.paid = { ...fl.paid, [`${req.params.sessionId}_${req.params.memberId}`]: true };
-  await fl.save();
-  res.json(publicFlight(fl));
+  const { ref, data } = await getOrCreateFlight(req.flightName);
+  data.paid[`${req.params.sessionId}_${req.params.memberId}`] = true;
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data));
 });
 
 app.post("/api/payments/:memberId/settle-all", async (req, res) => {
-  const fl = await getOrCreateFlight(req.flightName);
-  const paid = { ...fl.paid };
-  fl.sessions.forEach(s => { if(s.shares[req.params.memberId]) paid[`${s.id}_${req.params.memberId}`] = true; });
-  fl.paid = paid;
-  await fl.save();
-  res.json(publicFlight(fl));
+  const { ref, data } = await getOrCreateFlight(req.flightName);
+  data.sessions.forEach(s => { if(s.shares[req.params.memberId]) data.paid[`${s.id}_${req.params.memberId}`] = true; });
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data));
 });
 
 app.delete("/api/flight/reset", async (req, res) => {
-  const fl = await getOrCreateFlight(req.flightName);
-  fl.members = []; fl.sessions = []; fl.paid = {};
-  await fl.save();
-  res.json(publicFlight(fl));
+  const { ref, data } = await getOrCreateFlight(req.flightName);
+  const keepPin = data.pinHash, keepAdmin = data.adminName, keepPrice = data.tubePriceFils, keepPerTube = data.shuttlesPerTube;
+  const fresh = { ...DEFAULT_FLIGHT, pinHash: keepPin, adminName: keepAdmin, tubePriceFils: keepPrice, shuttlesPerTube: keepPerTube };
+  await ref.set(fresh);
+  res.json(publicFlight(req.flightName, fresh));
 });
 
-// Any non-API route falls back to the frontend (single-page app).
 app.get(/^(?!\/api).*/, (req, res) => res.sendFile(path.join(__dirname, "public/index.html")));
 
 const PORT = process.env.PORT || 10000;
