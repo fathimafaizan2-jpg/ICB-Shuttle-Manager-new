@@ -21,13 +21,13 @@ const FLIGHT_NAMES = ["Premier Flight","Flight 1","Flight 2","Flight 3","Flight 
    flight name. No query in this file ever reads more than one doc at
    a time, so a token for one flight can never surface another's data.
    =================================================================== */
-admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
-  })
-});
+   const serviceAccount = JSON.parse(
+     Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf8")
+   );
+
+   admin.initializeApp({
+     credential: admin.credential.cert(serviceAccount)
+   });
 const db = admin.firestore();
 const flights = db.collection("flights");
 
