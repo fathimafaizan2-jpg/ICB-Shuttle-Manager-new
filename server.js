@@ -14,13 +14,12 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const FLIGHT_NAMES = ["Premier Flight","Flight 1","Flight 2","Flight 3","Flight 4A","Flight 4B"];
-
 const LOCK_AFTER_ATTEMPTS = 5;
 const LOCK_MINUTES = 5;
+const INITIAL_FLIGHTS = ["Premier Flight","Flight 1","Flight 2","Flight 3","Flight 4A","Flight 4B"];
 
 /* ===================================================================
-   DATABASE — Firestore, one document per flight
+   DATABASE — Firestore
    =================================================================== */
 const serviceAccount = JSON.parse(
   Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, "base64").toString("utf8")
@@ -28,6 +27,7 @@ const serviceAccount = JSON.parse(
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 const flights = db.collection("flights");
+const metaFlightsRef = db.collection("meta").doc("flights");
 
 const DEFAULT_FLIGHT = {
   pinHash: null, adminName: "",
@@ -38,6 +38,18 @@ const DEFAULT_FLIGHT = {
 };
 
 function genToken(){ return crypto.randomBytes(12).toString("hex"); }
+
+async function getFlightNames(){
+  const snap = await metaFlightsRef.get();
+  if(!snap.exists){
+    await metaFlightsRef.set({ names: INITIAL_FLIGHTS });
+    return [...INITIAL_FLIGHTS];
+  }
+  return snap.data().names || [];
+}
+async function setFlightNames(names){
+  await metaFlightsRef.set({ names });
+}
 
 async function getOrCreateFlight(name){
   const ref = flights.doc(name);
@@ -88,7 +100,7 @@ function publicFlight(name, data){
    PUBLIC (no auth)
    =================================================================== */
 app.get("/api/ping", (req, res) => res.json({ ok: true }));
-app.get("/api/flights", (req, res) => res.json(FLIGHT_NAMES));
+app.get("/api/flights", async (req, res) => res.json(await getFlightNames()));
 
 app.get("/api/public/:token", async (req, res) => {
   const snapshot = await flights.get();
@@ -113,7 +125,7 @@ app.get("/api/public/:token", async (req, res) => {
 });
 
 /* ===================================================================
-   LOGIN + RECOVERY
+   LOGIN + RECOVERY (flight admins — completely unchanged, still PIN-based)
    =================================================================== */
 function isLocked(data){
   return data.lockUntil && new Date(data.lockUntil).getTime() > Date.now();
@@ -125,7 +137,8 @@ function lockMessage(data){
 
 app.post("/api/login", async (req, res) => {
   const { flightName, pin } = req.body;
-  if(!FLIGHT_NAMES.includes(flightName)) return res.status(400).json({ message: "Unknown flight." });
+  const names = await getFlightNames();
+  if(!names.includes(flightName)) return res.status(400).json({ message: "Unknown flight." });
   if(!/^\d{4,6}$/.test(pin || "")) return res.status(400).json({ message: "PIN must be 4–6 digits." });
 
   const { ref, data } = await getOrCreateFlight(flightName);
@@ -156,7 +169,8 @@ app.post("/api/login", async (req, res) => {
 
 app.post("/api/recover/pin", async (req, res) => {
   const { flightName, recoveryCode, newPin } = req.body;
-  if(!FLIGHT_NAMES.includes(flightName)) return res.status(400).json({ message: "Unknown flight." });
+  const names = await getFlightNames();
+  if(!names.includes(flightName)) return res.status(400).json({ message: "Unknown flight." });
   if(!/^\d{4,6}$/.test(newPin || "")) return res.status(400).json({ message: "New PIN must be 4–6 digits." });
 
   const { ref, data } = await getOrCreateFlight(flightName);
@@ -172,7 +186,79 @@ app.post("/api/recover/pin", async (req, res) => {
 });
 
 /* ===================================================================
-   AUTHENTICATED ROUTES
+   OWNER — authenticated with Firebase Auth (email/password), verified
+   via Firebase's own ID token check. No password is stored or checked
+   by this server at all; Firebase handles that entirely.
+   =================================================================== */
+async function ownerMiddleware(req, res, next){
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if(!token) return res.status(401).json({ message: "Not signed in as owner." });
+  try{
+    await admin.auth().verifyIdToken(token); // valid only for users created in this Firebase project
+    next();
+  }catch{
+    res.status(401).json({ message: "Owner session expired — please sign in again." });
+  }
+}
+
+app.get("/api/owner/flights", ownerMiddleware, async (req, res) => {
+  const names = await getFlightNames();
+  const list = [];
+  for(const name of names){
+    const { data } = await getOrCreateFlight(name);
+    list.push({
+      name,
+      claimed: !!data.pinHash,
+      adminName: data.adminName || "",
+      memberCount: data.members.length,
+      sessionCount: data.sessions.length
+    });
+  }
+  res.json(list);
+});
+
+app.post("/api/owner/flights", ownerMiddleware, async (req, res) => {
+  const name = String(req.body.name || "").trim();
+  if(!name) return res.status(400).json({ message: "Enter a flight name." });
+  const names = await getFlightNames();
+  if(names.includes(name)) return res.status(409).json({ message: "That flight name already exists." });
+  names.push(name);
+  await setFlightNames(names);
+  await flights.doc(name).set(DEFAULT_FLIGHT);
+  res.json({ success: true });
+});
+
+app.patch("/api/owner/flights/:name/rename", ownerMiddleware, async (req, res) => {
+  const oldName = req.params.name;
+  const newName = String(req.body.newName || "").trim();
+  if(!newName) return res.status(400).json({ message: "Enter a new name." });
+  const names = await getFlightNames();
+  if(!names.includes(oldName)) return res.status(404).json({ message: "Flight not found." });
+  if(names.includes(newName)) return res.status(409).json({ message: "That name is already taken." });
+
+  const oldRef = flights.doc(oldName);
+  const snap = await oldRef.get();
+  const data = snap.exists ? snap.data() : { ...DEFAULT_FLIGHT };
+  await flights.doc(newName).set(data);
+  await oldRef.delete();
+
+  await setFlightNames(names.map(n => n === oldName ? newName : n));
+  res.json({ success: true });
+});
+
+app.delete("/api/owner/flights/:name", ownerMiddleware, async (req, res) => {
+  const name = req.params.name;
+  const names = await getFlightNames();
+  if(!names.includes(name)) return res.status(404).json({ message: "Flight not found." });
+
+  await flights.doc(name).delete();
+  await setFlightNames(names.filter(n => n !== name));
+  res.json({ success: true });
+});
+
+/* ===================================================================
+   AUTHENTICATED FLIGHT ROUTES — unaffected by the Owner change
    =================================================================== */
 function authMiddleware(req, res, next){
   const header = req.headers.authorization || "";
@@ -180,6 +266,7 @@ function authMiddleware(req, res, next){
   if(!token) return res.status(401).json({ message: "Not signed in." });
   try{
     const payload = jwt.verify(token, JWT_SECRET);
+    if(!payload.flightName) throw new Error("no flight in token");
     req.flightName = payload.flightName;
     req.tokenVersion = payload.tokenVersion || 0;
     next();
@@ -190,6 +277,11 @@ function authMiddleware(req, res, next){
 app.use("/api", authMiddleware);
 
 async function loadFlightChecked(req, res){
+  const names = await getFlightNames();
+  if(!names.includes(req.flightName)){
+    res.status(401).json({ message: "This flight no longer exists — please sign in again." });
+    return null;
+  }
   const { ref, data } = await getOrCreateFlight(req.flightName);
   if((data.tokenVersion || 0) !== req.tokenVersion){
     res.status(401).json({ message: "Your PIN was reset elsewhere — please sign in again." });
@@ -203,7 +295,6 @@ app.get("/api/flight", async (req, res) => {
   res.json(publicFlight(req.flightName, ctx.data));
 });
 
-// Settings save now supports an exact stock override, alongside the existing "add tubes."
 app.post("/api/flight/settings", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data } = ctx;
@@ -248,9 +339,6 @@ app.post("/api/flight/recovery-code", async (req, res) => {
   res.json({ success: true });
 });
 
-/* --- Scoped resets: each touches only what it says it touches --- */
-
-// Stock only.
 app.post("/api/flight/stock/reset", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data } = ctx;
@@ -259,7 +347,6 @@ app.post("/api/flight/stock/reset", async (req, res) => {
   res.json(publicFlight(req.flightName, data));
 });
 
-// Members only — sessions/payment history is untouched, so past records still show names correctly.
 app.delete("/api/flight/members/clear-all", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data } = ctx;
@@ -268,7 +355,6 @@ app.delete("/api/flight/members/clear-all", async (req, res) => {
   res.json(publicFlight(req.flightName, data));
 });
 
-// Games + their payment records only — members, stock, and settings are untouched.
 app.delete("/api/flight/sessions/clear-all", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data } = ctx;
@@ -393,7 +479,6 @@ app.post("/api/payments/:memberId/settle-all", async (req, res) => {
   res.json(publicFlight(req.flightName, data));
 });
 
-// Full erase — the only remaining "everything" action, clearly labeled as such in the UI.
 app.delete("/api/flight/reset", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data } = ctx;
