@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shuttle Session Manager</title>
+<title>ICB Shuttle Manager</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#152a54">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -25,12 +25,6 @@ body{
 }
 h1,h2,.brand-font{ font-family:'Poppins','Inter',sans-serif; }
 
-#splash{position:fixed;inset:0;background:linear-gradient(160deg,var(--navy),var(--navy-deep));color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:999;}
-#splash .logo{font-size:52px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.3));}
-#splash .spinner{width:34px;height:34px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-#splash .msg{font-size:14px;color:#c3cddd;}
-
 #loadingBar{
   position:fixed;top:14px;left:50%;transform:translateX(-50%);
   background:var(--navy-deep);color:#fff;padding:9px 18px;border-radius:24px;
@@ -39,6 +33,7 @@ h1,h2,.brand-font{ font-family:'Poppins','Inter',sans-serif; }
 }
 #loadingBar.show{display:flex;}
 .loading-spinner{width:15px;height:15px;border:2.5px solid rgba(255,255,255,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
 header{
   background:linear-gradient(135deg,var(--navy),var(--navy-deep));
@@ -219,14 +214,13 @@ footer strong{color:var(--navy);}
 </style>
 </head>
 <body>
-<div id="splash"><div class="logo">🏸</div><div class="spinner"></div><div class="msg" id="splashMsg">Waking up server…</div></div>
 <div id="loadingBar"><div class="loading-spinner"></div><span>Please wait…</span></div>
 
 <header class="no-print">
   <div class="brand">
     <div class="logo">🏸</div>
     <div>
-      <h1 id="hdrTitle">Shuttle Session Manager</h1>
+      <h1 id="hdrTitle">ICB Shuttle Manager</h1>
       <div class="sub" id="hdrSub"></div>
     </div>
   </div>
@@ -234,7 +228,7 @@ footer strong{color:var(--navy);}
 </header>
 <nav id="navBar" class="no-print"></nav>
 <main id="content"></main>
-<footer>Powered by <strong>A1 Groups</strong></footer>
+<footer>Powered by <strong>A1 Technologies</strong></footer>
 <div class="toast" id="toast"></div>
 <div class="undo-bar" id="undoBar"></div>
 
@@ -314,6 +308,12 @@ function mapFirebaseAuthError(err){
   if(code.includes("too-many-requests")) return "Too many attempts — try again in a while.";
   if(code.includes("invalid-email")) return "Enter a valid email address.";
   return "Couldn't sign in — please try again.";
+}
+
+async function unwrapFetch(path){
+  showLoading();
+  try{ return await (await fetch(path)).json(); }
+  finally{ hideLoading(); }
 }
 
 const STATE = { fl: null, page: "session" };
@@ -418,11 +418,11 @@ function showUndoBar(message, onUndo){
 }
 
 /* ===================================================================
-   LOGIN + FORGOT PIN — flight admins, unchanged
+   LOGIN + FORGOT PIN + FORCED FIRST PIN CHANGE
    =================================================================== */
 let FLIGHT_NAMES = [];
 async function refreshFlightNames(){
-  try{ FLIGHT_NAMES = await (await fetch("/api/flights")).json(); }
+  try{ FLIGHT_NAMES = await unwrapFetch("/api/flights"); }
   catch{ /* keep whatever we had */ }
 }
 
@@ -430,7 +430,7 @@ function pageLogin(){
   return `
   <div class="card gate">
     <h2>🏸 Sign in to your flight</h2>
-    <p class="sub">Pick your flight and enter its PIN. First time in? Type a new 4–6 digit PIN to create it.</p>
+    <p class="sub">Pick your flight and enter its PIN.</p>
     <div class="field" style="text-align:left;margin-bottom:10px">
       <label>Flight</label>
       <select id="loginFlight">${FLIGHT_NAMES.map(n => `<option value="${n}">${n}</option>`).join("")}</select>
@@ -449,9 +449,9 @@ async function attemptLogin(){
     const data = await api("/api/login", { method:"POST", body: JSON.stringify({ flightName, pin }) });
     setToken(data.token);
     STATE.fl = data.flight;
-    STATE.page = "session";
+    STATE.page = data.flight.mustChangePin ? "mustChangePin" : "session";
     render();
-    toast(`Welcome, ${flightName}.`);
+    if(!data.flight.mustChangePin) toast(`Welcome, ${flightName}.`);
   }catch(err){ toast(err.message); }
 }
 
@@ -493,6 +493,28 @@ async function resetWithRecoveryCode(){
   try{
     await api("/api/recover/pin", { method:"POST", body: JSON.stringify({ flightName, recoveryCode, newPin }) });
     toast("PIN reset — sign in with your new PIN.");
+    STATE.page = "session";
+    render();
+  }catch(err){ toast(err.message); }
+}
+
+function pageMustChangePin(){
+  return `
+  <div class="card gate">
+    <h2>Set your own PIN</h2>
+    <p class="sub">Your admin PIN was set by the club owner to get you started. Please choose your own PIN now — only you should know it.</p>
+    <input class="pin-input" id="firstNewPin" type="password" inputmode="numeric" maxlength="6" placeholder="New PIN">
+    <button class="primary big" style="width:100%;margin-top:12px" onclick="confirmFirstPinChange()">Set PIN &amp; continue</button>
+  </div>`;
+}
+
+async function confirmFirstPinChange(){
+  const newPin = document.getElementById("firstNewPin").value.trim();
+  try{
+    await api("/api/flight/pin/confirm-change", { method:"POST", body: JSON.stringify({ newPin }) });
+    toast("PIN updated — please sign in with your new PIN.");
+    clearToken();
+    STATE.fl = null;
     STATE.page = "session";
     render();
   }catch(err){ toast(err.message); }
@@ -564,6 +586,7 @@ async function renderOwnerDashboard(){
       <td class="num">${f.memberCount}</td>
       <td class="num">${f.sessionCount}</td>
       <td class="num">
+        <button onclick="assignFlightAdmin('${encodeURIComponent(f.name)}')">Assign admin</button>
         <button onclick="renameFlight('${encodeURIComponent(f.name)}')">Rename</button>
         <button class="danger" onclick="revokeFlightAccess('${encodeURIComponent(f.name)}', ${f.claimed})">Revoke access</button>
         <button class="danger" onclick="removeFlight('${encodeURIComponent(f.name)}', ${f.memberCount}, ${f.sessionCount})">Remove</button>
@@ -581,18 +604,38 @@ async function renderOwnerDashboard(){
     <div class="card">
       <h2 class="tab-setup">Add a new flight</h2>
       <div class="row">
-        <input id="newFlightName" placeholder="e.g. Flight 5" style="width:220px" onkeydown="if(event.key==='Enter')addFlight()">
+        <input id="newFlightName" placeholder="e.g. Flight 5" style="width:170px">
+        <input id="newFlightAdmin" placeholder="Admin name" style="width:160px">
+        <input id="newFlightPin" type="password" inputmode="numeric" maxlength="6" placeholder="Initial PIN (optional)" style="width:180px">
         <button class="primary" onclick="addFlight()">Add flight</button>
       </div>
+      <p class="muted" style="margin-top:8px">If you set an initial PIN, the admin will be prompted to set their own PIN the first time they sign in.</p>
     </div>`;
 }
 
 async function addFlight(){
   const name = document.getElementById("newFlightName").value.trim();
+  const adminName = document.getElementById("newFlightAdmin").value.trim();
+  const initialPin = document.getElementById("newFlightPin").value.trim();
   if(!name){ toast("Enter a flight name."); return; }
+  if(initialPin && !/^\d{4,6}$/.test(initialPin)){ toast("Initial PIN must be 4–6 digits."); return; }
   try{
-    await ownerApi("/api/owner/flights", { method:"POST", body: JSON.stringify({ name }) });
+    await ownerApi("/api/owner/flights", { method:"POST", body: JSON.stringify({ name, adminName, initialPin }) });
     toast(`${name} added.`);
+    render();
+  }catch(err){ toast(err.message); }
+}
+
+async function assignFlightAdmin(encodedName){
+  const name = decodeURIComponent(encodedName);
+  const adminName = prompt(`Admin name for "${name}" (leave blank to keep current):`);
+  if(adminName === null) return;
+  const newPin = prompt(`Issue a fresh PIN for "${name}" (4–6 digits, leave blank to keep current PIN):`);
+  if(newPin === null) return;
+  if(newPin && !/^\d{4,6}$/.test(newPin)){ toast("PIN must be 4–6 digits."); return; }
+  try{
+    await ownerApi(`/api/owner/flights/${encodeURIComponent(name)}/assign`, { method:"POST", body: JSON.stringify({ adminName, newPin }) });
+    toast(`${name} updated.${newPin ? " The admin will be asked to set their own PIN on next login." : ""}`);
     render();
   }catch(err){ toast(err.message); }
 }
@@ -685,8 +728,16 @@ async function refreshFlight(){
 }
 
 async function render(){
+  if(STATE.page === "mustChangePin"){
+    document.getElementById("hdrTitle").textContent = "ICB Shuttle Manager";
+    document.getElementById("hdrSub").textContent = "";
+    document.getElementById("hdrActions").innerHTML = "";
+    document.getElementById("navBar").innerHTML = "";
+    document.getElementById("content").innerHTML = pageMustChangePin();
+    return;
+  }
   if(STATE.page === "ownerLogin"){
-    document.getElementById("hdrTitle").textContent = "Shuttle Session Manager";
+    document.getElementById("hdrTitle").textContent = "ICB Shuttle Manager";
     document.getElementById("hdrSub").textContent = "";
     document.getElementById("hdrActions").innerHTML = "";
     document.getElementById("navBar").innerHTML = "";
@@ -700,7 +751,7 @@ async function render(){
 
   if(!getToken() || !STATE.fl){
     await refreshFlightNames();
-    document.getElementById("hdrTitle").textContent = "Shuttle Session Manager";
+    document.getElementById("hdrTitle").textContent = "ICB Shuttle Manager";
     document.getElementById("hdrSub").textContent = "";
     document.getElementById("hdrActions").innerHTML = "";
     document.getElementById("navBar").innerHTML = "";
@@ -710,7 +761,7 @@ async function render(){
 
   const fl = STATE.fl;
   document.getElementById("hdrTitle").textContent = fl.flightName;
-  document.getElementById("hdrSub").textContent = fl.adminName ? `Admin: ${fl.adminName}` : "Admin name not set — add it in Setup";
+  document.getElementById("hdrSub").textContent = fl.adminName ? `Admin: ${fl.adminName}` : "";
   document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="signOut()">🔒 Sign out</button>`;
 
   document.getElementById("navBar").innerHTML = TABS.map(([id,label]) =>
@@ -1282,27 +1333,13 @@ function setPeriod(v){ PERIOD = v; render(); }
 function setAnchor(v){ ANCHOR = v; render(); }
 
 /* =============================== BOOT =============================== */
-async function wakeServer(){
-  const msgEl = document.getElementById("splashMsg");
-  const start = Date.now();
-  while(true){
-    try{ await fetch("/api/ping", { cache: "no-store" }); break; }
-    catch{
-      if(Date.now() - start > 55000){ msgEl.textContent = "Still trying — this can take a minute on first load…"; }
-      await new Promise(r => setTimeout(r, 2000));
-    }
-  }
-}
-
 (async function boot(){
-  await wakeServer();
-  document.getElementById("splash").style.display = "none";
-
-  const params = new URLSearchParams(location.search);
-  const publicToken = params.get("p");
-  if(publicToken){ await renderPublicView(publicToken); return; }
-
-  if(getToken()){ try{ await refreshFlight(); }catch{} }
+  if(getToken()){
+    try{
+      await refreshFlight();
+      if(STATE.fl?.mustChangePin){ STATE.page = "mustChangePin"; }
+    }catch{}
+  }
   render();
 })();
 </script>
