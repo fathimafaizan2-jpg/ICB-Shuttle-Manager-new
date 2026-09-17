@@ -20,10 +20,8 @@
 }
 *{box-sizing:border-box;}
 body{
-  margin:0;
-  font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  background:var(--bg); color:var(--text);
-  display:flex; flex-direction:column; min-height:100vh;
+  margin:0; font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg); color:var(--text); display:flex; flex-direction:column; min-height:100vh;
 }
 h1,h2,.brand-font{ font-family:'Poppins','Inter',sans-serif; }
 
@@ -32,6 +30,15 @@ h1,h2,.brand-font{ font-family:'Poppins','Inter',sans-serif; }
 #splash .spinner{width:34px;height:34px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 #splash .msg{font-size:14px;color:#c3cddd;}
+
+#loadingBar{
+  position:fixed;top:14px;left:50%;transform:translateX(-50%);
+  background:var(--navy-deep);color:#fff;padding:9px 18px;border-radius:24px;
+  font-size:13px;font-weight:600;display:none;align-items:center;gap:9px;
+  z-index:200;box-shadow:0 6px 18px rgba(0,0,0,.3);
+}
+#loadingBar.show{display:flex;}
+.loading-spinner{width:15px;height:15px;border:2.5px solid rgba(255,255,255,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;}
 
 header{
   background:linear-gradient(135deg,var(--navy),var(--navy-deep));
@@ -53,7 +60,6 @@ select,button,input{font-family:'Inter',sans-serif;font-size:14px;}
 input,select{padding:9px 11px;border:1.5px solid var(--line);border-radius:9px;background:#fff;}
 input:focus,select:focus{outline:none;border-color:var(--court);box-shadow:0 0 0 3px rgba(14,148,105,.15);}
 
-/* ===== 3D pressable buttons ===== */
 button{
   cursor:pointer; border:none; border-radius:10px; padding:10px 16px;
   font-weight:600; font-size:14px;
@@ -67,39 +73,30 @@ button:active{transform:translateY(2px);box-shadow:0 1px 0 #c7cede, 0 2px 4px rg
 button:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;}
 
 button.primary{
-  background:linear-gradient(180deg,#22b17c,var(--court));
-  color:#fff;
+  background:linear-gradient(180deg,#22b17c,var(--court)); color:#fff;
   box-shadow:0 4px 0 var(--court-deep), 0 6px 14px rgba(14,148,105,.35);
 }
 button.primary:active{box-shadow:0 1px 0 var(--court-deep);}
 
 button.danger{
-  background:linear-gradient(180deg,#ee5a4d,var(--coral));
-  color:#fff;
+  background:linear-gradient(180deg,#ee5a4d,var(--coral)); color:#fff;
   box-shadow:0 4px 0 var(--coral-deep), 0 6px 14px rgba(230,57,70,.35);
 }
 button.danger:active{box-shadow:0 1px 0 var(--coral-deep);}
 
 button.wa{
-  background:linear-gradient(180deg,#2fdb7a,var(--wa));
-  color:#fff;
+  background:linear-gradient(180deg,#2fdb7a,var(--wa)); color:#fff;
   box-shadow:0 4px 0 var(--wa-deep), 0 6px 14px rgba(37,211,102,.35);
 }
 button.wa:active{box-shadow:0 1px 0 var(--wa-deep);}
 
 button.big{padding:14px 22px;font-size:16px;}
-button.ghost{
-  background:rgba(255,255,255,.08);color:#e6ecf7;
-  box-shadow:none;border:1.5px solid rgba(255,255,255,.28);
-}
+button.ghost{background:rgba(255,255,255,.08);color:#e6ecf7;box-shadow:none;border:1.5px solid rgba(255,255,255,.28);}
 button.ghost:active{transform:none;background:rgba(255,255,255,.16);}
 button.link-btn{background:none;box-shadow:none;padding:4px 6px;color:var(--court);font-weight:600;text-decoration:underline;}
 button.link-btn:active{transform:none;}
 
-nav{
-  display:flex; gap:4px; background:var(--navy-deep); padding:0 16px;
-  overflow-x:auto; box-shadow:inset 0 -1px 0 rgba(255,255,255,.06);
-}
+nav{display:flex; gap:4px; background:var(--navy-deep); padding:0 16px; overflow-x:auto; box-shadow:inset 0 -1px 0 rgba(255,255,255,.06);}
 nav button{
   background:transparent; color:#9fb0cf; border:none; border-radius:0; box-shadow:none;
   padding:14px 20px; border-bottom:4px solid transparent; white-space:nowrap;
@@ -114,8 +111,7 @@ nav button[data-tab="setup"].active{border-bottom-color:#7ea6ff;}
 
 main{max-width:1100px;margin:20px auto;padding:0 16px 44px;flex:1;width:100%;}
 .card{
-  background:var(--card); border:1px solid var(--line); border-radius:16px;
-  padding:20px; margin-bottom:16px;
+  background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:16px;
   box-shadow:0 2px 6px rgba(20,30,60,.05), 0 10px 28px rgba(20,30,60,.05);
 }
 .card h2{margin:0 0 4px;font-size:17px;color:var(--navy);font-weight:700;}
@@ -162,16 +158,14 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 .member-list{display:flex;flex-direction:column;gap:4px;}
 .member-row{
   display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;
-  cursor:pointer;border:1.5px solid var(--line);background:#fff;
-  transition:all .12s ease;
+  cursor:pointer;border:1.5px solid var(--line);background:#fff;transition:all .12s ease;
 }
 .member-row:hover{border-color:#c7cede;transform:translateY(-1px);box-shadow:0 3px 8px rgba(20,30,60,.08);}
 .member-row.on{background:#e6f8f0;border-color:var(--court);box-shadow:0 2px 0 var(--court-deep);}
 .avatar{
   width:38px;height:38px;border-radius:50%;
-  background:linear-gradient(160deg,#2c4a8c,var(--navy));
-  color:#fff;display:flex;align-items:center;justify-content:center;
-  font-size:13px;font-weight:700;flex-shrink:0;
+  background:linear-gradient(160deg,#2c4a8c,var(--navy)); color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;
 }
 .member-row.on .avatar{background:linear-gradient(160deg,#22b17c,var(--court));}
 .member-info{flex:1;min-width:0;}
@@ -184,8 +178,7 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 .present-counter{font-size:13px;color:var(--muted);margin-bottom:10px;font-weight:600;}
 
 .summary{
-  background:linear-gradient(135deg,#f0f4fa,#e7ecf7);
-  border:1px solid var(--line);border-radius:14px;padding:16px;
+  background:linear-gradient(135deg,#f0f4fa,#e7ecf7); border:1px solid var(--line); border-radius:14px; padding:16px;
   display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;
 }
 .summary div span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.4px;}
@@ -196,7 +189,6 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 .payline{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;}
 .payline:last-child{border-bottom:none;}
 .payline-info{font-size:13px;}
-.partial-box{display:flex;gap:8px;align-items:center;margin-top:8px;background:#f6f8fb;padding:10px;border-radius:10px;}
 
 .report{border-collapse:collapse;width:100%;font-size:12px;}
 .report th,.report td{border:1px solid #ccd3e2;padding:6px 8px;}
@@ -213,10 +205,7 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 .gate{max-width:400px;margin:70px auto;text-align:center;}
 .gate .pin-input{font-size:26px;letter-spacing:12px;text-align:center;width:100%;margin:16px 0;font-weight:700;}
 
-footer{
-  text-align:center;padding:18px;color:var(--muted);font-size:12px;
-  border-top:1px solid var(--line);background:#fff;
-}
+footer{text-align:center;padding:18px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);background:#fff;}
 footer strong{color:var(--navy);}
 
 @media print{
@@ -229,6 +218,7 @@ footer strong{color:var(--navy);}
 </head>
 <body>
 <div id="splash"><div class="logo">🏸</div><div class="spinner"></div><div class="msg" id="splashMsg">Waking up server…</div></div>
+<div id="loadingBar"><div class="loading-spinner"></div><span>Please wait…</span></div>
 
 <header class="no-print">
   <div class="brand">
@@ -248,7 +238,7 @@ footer strong{color:var(--navy);}
 
 <script>
 /* ===================================================================
-   API CLIENT
+   API CLIENT (with loading indicator)
    =================================================================== */
 const TOKEN_KEY = "shuttle_token";
 const ACTOR_KEY = "shuttle_actor";
@@ -256,15 +246,22 @@ function getToken(){ return localStorage.getItem(TOKEN_KEY); }
 function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
 function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
 
+let ACTIVE_REQUESTS = 0;
+function showLoading(){ ACTIVE_REQUESTS++; document.getElementById("loadingBar").classList.add("show"); }
+function hideLoading(){ ACTIVE_REQUESTS = Math.max(0, ACTIVE_REQUESTS-1); if(ACTIVE_REQUESTS===0) document.getElementById("loadingBar").classList.remove("show"); }
+
 async function api(path, options = {}){
-  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
-  const token = getToken();
-  if(token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(path, { ...options, headers });
-  const data = await res.json().catch(() => ({}));
-  if(res.status === 401){ clearToken(); STATE.fl = null; render(); throw new Error(data.message || "Signed out."); }
-  if(!res.ok) throw new Error(data.message || "Something went wrong.");
-  return data;
+  showLoading();
+  try{
+    const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+    const token = getToken();
+    if(token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(path, { ...options, headers });
+    const data = await res.json().catch(() => ({}));
+    if(res.status === 401){ clearToken(); STATE.fl = null; render(); throw new Error(data.message || "Signed out."); }
+    if(!res.ok) throw new Error(data.message || "Something went wrong.");
+    return data;
+  } finally { hideLoading(); }
 }
 
 const STATE = { fl: null, page: "session" };
@@ -352,7 +349,7 @@ function showUndoBar(message, onUndo){
 }
 
 /* ===================================================================
-   LOGIN
+   LOGIN + FORGOT PIN (recovery code)
    =================================================================== */
 const FLIGHT_NAMES = ["Premier Flight","Flight 1","Flight 2","Flight 3","Flight 4A","Flight 4B"];
 
@@ -371,6 +368,7 @@ function pageLogin(){
     </div>
     <input class="pin-input" id="loginPin" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
     <button class="primary big" style="width:100%" onclick="attemptLogin()">Continue</button>
+    <p style="margin-top:12px"><button class="link-btn" onclick="STATE.page='forgotPin';render()">Forgot your PIN?</button></p>
   </div>`;
 }
 
@@ -393,12 +391,48 @@ function signOut(){
   if(!confirm("Sign out? You'll need your PIN to sign back in.")) return;
   clearToken();
   STATE.fl = null;
+  STATE.page = "session";
   render();
 }
 
 function changeActor(){
   const name = prompt("Your name:", localStorage.getItem(ACTOR_KEY) || "");
   if(name && name.trim()){ localStorage.setItem(ACTOR_KEY, name.trim()); render(); }
+}
+
+function pageForgotPin(){
+  return `
+  <div class="card gate">
+    <h2>Reset your PIN</h2>
+    <p class="sub">Use the recovery code you set earlier in Setup for this flight.</p>
+    <div class="field" style="text-align:left;margin-bottom:10px">
+      <label>Flight</label>
+      <select id="forgotFlight">${FLIGHT_NAMES.map(n => `<option value="${n}">${n}</option>`).join("")}</select>
+    </div>
+    <div class="field" style="text-align:left;margin-bottom:10px">
+      <label>Recovery code</label>
+      <input id="recoveryCodeInput" placeholder="Your recovery code" style="width:100%">
+    </div>
+    <div class="field" style="text-align:left;margin-bottom:14px">
+      <label>New PIN</label>
+      <input id="newPinRecovery" type="password" inputmode="numeric" maxlength="6" placeholder="New 4\u20136 digit PIN" style="width:100%">
+    </div>
+    <button class="primary big" style="width:100%" onclick="resetWithRecoveryCode()">Reset PIN</button>
+    <p style="margin-top:12px"><button class="link-btn" onclick="STATE.page='session';render()">Back to sign in</button></p>
+  </div>`;
+}
+
+async function resetWithRecoveryCode(){
+  const flightName = document.getElementById("forgotFlight").value;
+  const recoveryCode = document.getElementById("recoveryCodeInput").value.trim();
+  const newPin = document.getElementById("newPinRecovery").value.trim();
+  if(!recoveryCode){ toast("Enter your recovery code."); return; }
+  try{
+    await api("/api/recover/pin", { method:"POST", body: JSON.stringify({ flightName, recoveryCode, newPin }) });
+    toast("PIN reset — sign in with your new PIN.");
+    STATE.page = "session";
+    render();
+  }catch(err){ toast(err.message); }
 }
 
 /* ===================================================================
@@ -448,7 +482,7 @@ async function render(){
     document.getElementById("hdrSub").textContent = "";
     document.getElementById("hdrActions").innerHTML = "";
     document.getElementById("navBar").innerHTML = "";
-    document.getElementById("content").innerHTML = pageLogin();
+    document.getElementById("content").innerHTML = STATE.page === "forgotPin" ? pageForgotPin() : pageLogin();
     return;
   }
 
@@ -527,6 +561,16 @@ function pageSetup(fl){
     </div>
   </div>
 
+  <div class="card no-print">
+    <h2 class="tab-setup">Recovery code</h2>
+    <p class="sub">Set this once so you can reset your own forgotten PIN later — nobody else needs to know it, and neither do we.</p>
+    <div class="row">
+      <input id="recoveryCodeSet" placeholder="${fl.hasRecoveryCode ? "Set a new recovery code" : "Set a recovery code"}" style="width:240px">
+      <button class="primary" onclick="saveRecoveryCode()">Save recovery code</button>
+      ${fl.hasRecoveryCode ? `<span class="badge b-paid">Already set</span>` : `<span class="badge b-warn">Not set yet</span>`}
+    </div>
+  </div>
+
   <div class="card">
     <h2 class="tab-setup">Members — ${fl.members.filter(m=>m.active).length} active</h2>
     <div class="row" style="margin-bottom:14px">
@@ -564,6 +608,17 @@ async function changePin(){
       newPin: document.getElementById("newPin").value.trim()
     })});
     toast("PIN updated.");
+  }catch(err){ toast(err.message); }
+}
+
+async function saveRecoveryCode(){
+  const code = document.getElementById("recoveryCodeSet").value.trim();
+  if(!code){ toast("Type a recovery code first."); return; }
+  try{
+    await api("/api/flight/recovery-code", { method:"POST", body: JSON.stringify({ recoveryCode: code }) });
+    STATE.fl.hasRecoveryCode = true;
+    render();
+    toast("Recovery code saved — keep it somewhere only you know.");
   }catch(err){ toast(err.message); }
 }
 
