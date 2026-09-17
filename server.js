@@ -33,6 +33,7 @@ const DEFAULT_FLIGHT = {
   pinHash: null, adminName: "",
   recoveryCodeHash: null,
   tokenVersion: 0, failedAttempts: 0, lockUntil: null,
+  lastActiveAt: null,
   tubePriceFils: 14500, shuttlesPerTube: 12, shuttlesInStock: 0,
   members: [], sessions: [], paid: {}
 };
@@ -125,7 +126,7 @@ app.get("/api/public/:token", async (req, res) => {
 });
 
 /* ===================================================================
-   LOGIN + RECOVERY (flight admins — completely unchanged, still PIN-based)
+   LOGIN + RECOVERY (flight admins)
    =================================================================== */
 function isLocked(data){
   return data.lockUntil && new Date(data.lockUntil).getTime() > Date.now();
@@ -147,7 +148,6 @@ app.post("/api/login", async (req, res) => {
   if(!data.pinHash){
     data.pinHash = await bcrypt.hash(pin, 10);
     data.failedAttempts = 0; data.lockUntil = null;
-    await ref.set(data);
   }else{
     const ok = await bcrypt.compare(pin, data.pinHash);
     if(!ok){
@@ -160,8 +160,10 @@ app.post("/api/login", async (req, res) => {
       return res.status(401).json({ message: "Incorrect PIN." });
     }
     data.failedAttempts = 0; data.lockUntil = null;
-    await ref.set(data);
   }
+
+  data.lastActiveAt = new Date().toISOString();
+  await ref.set(data);
 
   const token = jwt.sign({ flightName, tokenVersion: data.tokenVersion || 0 }, JWT_SECRET, { expiresIn: "30d" });
   res.json({ token, flight: publicFlight(flightName, data) });
@@ -186,16 +188,14 @@ app.post("/api/recover/pin", async (req, res) => {
 });
 
 /* ===================================================================
-   OWNER — authenticated with Firebase Auth (email/password), verified
-   via Firebase's own ID token check. No password is stored or checked
-   by this server at all; Firebase handles that entirely.
+   OWNER — Firebase Auth email/password. Flight list management only.
    =================================================================== */
 async function ownerMiddleware(req, res, next){
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
   if(!token) return res.status(401).json({ message: "Not signed in as owner." });
   try{
-    await admin.auth().verifyIdToken(token); // valid only for users created in this Firebase project
+    await admin.auth().verifyIdToken(token);
     next();
   }catch{
     res.status(401).json({ message: "Owner session expired — please sign in again." });
@@ -212,7 +212,8 @@ app.get("/api/owner/flights", ownerMiddleware, async (req, res) => {
       claimed: !!data.pinHash,
       adminName: data.adminName || "",
       memberCount: data.members.length,
-      sessionCount: data.sessions.length
+      sessionCount: data.sessions.length,
+      lastActiveAt: data.lastActiveAt || null
     });
   }
   res.json(list);
@@ -247,6 +248,23 @@ app.patch("/api/owner/flights/:name/rename", ownerMiddleware, async (req, res) =
   res.json({ success: true });
 });
 
+// Revoke access: clears PIN + recovery code + expires all existing logins.
+// Members, sessions, payments, stock, and settings are completely untouched.
+app.post("/api/owner/flights/:name/revoke", ownerMiddleware, async (req, res) => {
+  const name = req.params.name;
+  const names = await getFlightNames();
+  if(!names.includes(name)) return res.status(404).json({ message: "Flight not found." });
+
+  const { ref, data } = await getOrCreateFlight(name);
+  data.pinHash = null;
+  data.recoveryCodeHash = null;
+  data.tokenVersion = (data.tokenVersion || 0) + 1;
+  data.failedAttempts = 0;
+  data.lockUntil = null;
+  await ref.set(data);
+  res.json({ success: true });
+});
+
 app.delete("/api/owner/flights/:name", ownerMiddleware, async (req, res) => {
   const name = req.params.name;
   const names = await getFlightNames();
@@ -258,7 +276,7 @@ app.delete("/api/owner/flights/:name", ownerMiddleware, async (req, res) => {
 });
 
 /* ===================================================================
-   AUTHENTICATED FLIGHT ROUTES — unaffected by the Owner change
+   AUTHENTICATED FLIGHT ROUTES
    =================================================================== */
 function authMiddleware(req, res, next){
   const header = req.headers.authorization || "";
@@ -284,7 +302,7 @@ async function loadFlightChecked(req, res){
   }
   const { ref, data } = await getOrCreateFlight(req.flightName);
   if((data.tokenVersion || 0) !== req.tokenVersion){
-    res.status(401).json({ message: "Your PIN was reset elsewhere — please sign in again." });
+    res.status(401).json({ message: "Your session was ended — please sign in again." });
     return null;
   }
   return { ref, data };
@@ -483,7 +501,7 @@ app.delete("/api/flight/reset", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data } = ctx;
   const fresh = { ...DEFAULT_FLIGHT, pinHash: data.pinHash, recoveryCodeHash: data.recoveryCodeHash,
-    tokenVersion: data.tokenVersion, adminName: data.adminName,
+    tokenVersion: data.tokenVersion, adminName: data.adminName, lastActiveAt: data.lastActiveAt,
     tubePriceFils: data.tubePriceFils, shuttlesPerTube: data.shuttlesPerTube };
   await ref.set(fresh);
   res.json(publicFlight(req.flightName, fresh));
