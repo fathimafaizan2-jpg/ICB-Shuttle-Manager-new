@@ -291,9 +291,6 @@ async function api(path, options = {}){
   } finally { hideLoading(); }
 }
 
-// Owner requests attach a fresh Firebase ID token each time — no manual
-// token storage needed, Firebase's SDK keeps the sign-in state and
-// refreshes tokens automatically.
 async function ownerApi(path, options = {}){
   showLoading();
   try{
@@ -351,6 +348,17 @@ function escapeHtml(s){
 function daysSince(iso){
   const [y,m,d] = iso.split("-").map(Number);
   return Math.floor((Date.now() - new Date(y,m-1,d).getTime()) / 86400000);
+}
+function timeAgo(iso){
+  if(!iso) return "Never";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diffMs / 86400000);
+  if(days === 0) return "Today";
+  if(days === 1) return "Yesterday";
+  if(days < 30) return `${days} days ago`;
+  const months = Math.floor(days / 30);
+  if(months < 12) return `${months} month${months>1?"s":""} ago`;
+  return `${Math.floor(months/12)} year(s) ago`;
 }
 const FILS = 1000;
 function bhd(fils){ return (fils / FILS).toFixed(3); }
@@ -497,7 +505,7 @@ function pageOwnerLogin(){
   return `
   <div class="card gate">
     <h2>Owner access</h2>
-    <p class="sub">Manage the list of flights only — add, rename, or remove them. This screen never shows any flight's members, games, or payments.</p>
+    <p class="sub">Manage the list of flights only — add, rename, revoke access, or remove them. This screen never shows any flight's members, games, or payments.</p>
     <div class="field" style="text-align:left;margin-bottom:10px">
       <label>Email</label>
       <input id="ownerEmail" type="email" placeholder="you@example.com" style="width:100%">
@@ -552,10 +560,12 @@ async function renderOwnerDashboard(){
       <td><strong>${escapeHtml(f.name)}</strong></td>
       <td>${f.claimed ? '<span class="badge b-paid">Claimed</span>' : '<span class="badge b-warn">Not claimed</span>'}</td>
       <td>${escapeHtml(f.adminName || "—")}</td>
+      <td class="muted" style="font-size:12px">${timeAgo(f.lastActiveAt)}</td>
       <td class="num">${f.memberCount}</td>
       <td class="num">${f.sessionCount}</td>
       <td class="num">
         <button onclick="renameFlight('${encodeURIComponent(f.name)}')">Rename</button>
+        <button class="danger" onclick="revokeFlightAccess('${encodeURIComponent(f.name)}', ${f.claimed})">Revoke access</button>
         <button class="danger" onclick="removeFlight('${encodeURIComponent(f.name)}', ${f.memberCount}, ${f.sessionCount})">Remove</button>
       </td>
     </tr>`).join("");
@@ -564,8 +574,8 @@ async function renderOwnerDashboard(){
     <div class="card">
       <h2 class="tab-setup">All flights (${OWNER_FLIGHTS.length})</h2>
       <table>
-        <tr><th>Flight</th><th>Status</th><th>Admin</th><th class="num">Members</th><th class="num">Games</th><th></th></tr>
-        ${rows || `<tr><td colspan="6" class="muted">No flights yet.</td></tr>`}
+        <tr><th>Flight</th><th>Status</th><th>Admin</th><th>Last active</th><th class="num">Members</th><th class="num">Games</th><th></th></tr>
+        ${rows || `<tr><td colspan="7" class="muted">No flights yet.</td></tr>`}
       </table>
     </div>
     <div class="card">
@@ -600,6 +610,21 @@ async function renameFlight(encodedOldName){
   try{
     await ownerApi(`/api/owner/flights/${encodeURIComponent(oldName)}/rename`, { method:"PATCH", body: JSON.stringify({ newName: trimmed }) });
     toast("Flight renamed.");
+    render();
+  }catch(err){ toast(err.message); }
+}
+
+async function revokeFlightAccess(encodedName, claimed){
+  const name = decodeURIComponent(encodedName);
+  if(!claimed){ toast(`${name} isn't claimed by anyone yet — nothing to revoke.`); return; }
+  const ok = confirmScoped(
+    `This will immediately lock out whoever currently controls "${name}" — their PIN and recovery code stop working right away, even if they're using the app this second. All members, games, payments, and stock stay exactly as they are. The flight goes back to unclaimed, so the next person to enter a PIN becomes its new admin.`,
+    "REVOKE"
+  );
+  if(!ok){ toast("Cancelled."); return; }
+  try{
+    await ownerApi(`/api/owner/flights/${encodeURIComponent(name)}/revoke`, { method:"POST" });
+    toast(`Access revoked for ${name}. It's now unclaimed.`);
     render();
   }catch(err){ toast(err.message); }
 }
