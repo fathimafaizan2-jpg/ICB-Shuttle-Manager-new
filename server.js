@@ -113,7 +113,7 @@ app.get("/api/public/:token", async (req, res) => {
 });
 
 /* ===================================================================
-   LOGIN + RECOVERY (no auth token needed yet)
+   LOGIN + RECOVERY
    =================================================================== */
 function isLocked(data){
   return data.lockUntil && new Date(data.lockUntil).getTime() > Date.now();
@@ -154,7 +154,6 @@ app.post("/api/login", async (req, res) => {
   res.json({ token, flight: publicFlight(flightName, data) });
 });
 
-// Self-service PIN reset using the recovery code — no admin involvement needed.
 app.post("/api/recover/pin", async (req, res) => {
   const { flightName, recoveryCode, newPin } = req.body;
   if(!FLIGHT_NAMES.includes(flightName)) return res.status(400).json({ message: "Unknown flight." });
@@ -166,7 +165,7 @@ app.post("/api/recover/pin", async (req, res) => {
   if(!ok) return res.status(401).json({ message: "That recovery code doesn't match." });
 
   data.pinHash = await bcrypt.hash(newPin, 10);
-  data.tokenVersion = (data.tokenVersion || 0) + 1; // force-expire any existing logins
+  data.tokenVersion = (data.tokenVersion || 0) + 1;
   data.failedAttempts = 0; data.lockUntil = null;
   await ref.set(data);
   res.json({ success: true });
@@ -190,8 +189,6 @@ function authMiddleware(req, res, next){
 }
 app.use("/api", authMiddleware);
 
-// Every authenticated route re-checks tokenVersion, so a PIN reset immediately
-// signs out any other device still using the old token.
 async function loadFlightChecked(req, res){
   const { ref, data } = await getOrCreateFlight(req.flightName);
   if((data.tokenVersion || 0) !== req.tokenVersion){
@@ -206,17 +203,24 @@ app.get("/api/flight", async (req, res) => {
   res.json(publicFlight(req.flightName, ctx.data));
 });
 
+// Settings save now supports an exact stock override, alongside the existing "add tubes."
 app.post("/api/flight/settings", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data } = ctx;
-  const { adminName, tubePriceFils, shuttlesPerTube, addTubes } = req.body;
+  const { adminName, tubePriceFils, shuttlesPerTube, addTubes, setStockExact } = req.body;
   if(!(tubePriceFils > 0)) return res.status(400).json({ message: "Enter a tube price greater than zero." });
   if(!(shuttlesPerTube > 0)) return res.status(400).json({ message: "Enter how many shuttles are in a tube." });
   data.adminName = String(adminName || "").trim();
   data.tubePriceFils = Math.round(tubePriceFils);
   data.shuttlesPerTube = Math.round(shuttlesPerTube);
-  const tubesToAdd = Math.max(0, Math.round(Number(addTubes) || 0));
-  data.shuttlesInStock = (data.shuttlesInStock || 0) + tubesToAdd * data.shuttlesPerTube;
+
+  if(setStockExact !== undefined && setStockExact !== null && String(setStockExact).trim() !== ""){
+    data.shuttlesInStock = Math.max(0, Math.round(Number(setStockExact)));
+  } else {
+    const tubesToAdd = Math.max(0, Math.round(Number(addTubes) || 0));
+    data.shuttlesInStock = (data.shuttlesInStock || 0) + tubesToAdd * data.shuttlesPerTube;
+  }
+
   await ref.set(data);
   res.json(publicFlight(req.flightName, data));
 });
@@ -242,6 +246,36 @@ app.post("/api/flight/recovery-code", async (req, res) => {
   data.recoveryCodeHash = await bcrypt.hash(code, 10);
   await ref.set(data);
   res.json({ success: true });
+});
+
+/* --- Scoped resets: each touches only what it says it touches --- */
+
+// Stock only.
+app.post("/api/flight/stock/reset", async (req, res) => {
+  const ctx = await loadFlightChecked(req, res); if(!ctx) return;
+  const { ref, data } = ctx;
+  data.shuttlesInStock = 0;
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data));
+});
+
+// Members only — sessions/payment history is untouched, so past records still show names correctly.
+app.delete("/api/flight/members/clear-all", async (req, res) => {
+  const ctx = await loadFlightChecked(req, res); if(!ctx) return;
+  const { ref, data } = ctx;
+  data.members = [];
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data));
+});
+
+// Games + their payment records only — members, stock, and settings are untouched.
+app.delete("/api/flight/sessions/clear-all", async (req, res) => {
+  const ctx = await loadFlightChecked(req, res); if(!ctx) return;
+  const { ref, data } = ctx;
+  data.sessions = [];
+  data.paid = {};
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data));
 });
 
 app.post("/api/members", async (req, res) => {
@@ -359,6 +393,7 @@ app.post("/api/payments/:memberId/settle-all", async (req, res) => {
   res.json(publicFlight(req.flightName, data));
 });
 
+// Full erase — the only remaining "everything" action, clearly labeled as such in the UI.
 app.delete("/api/flight/reset", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data } = ctx;
