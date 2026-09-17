@@ -31,6 +31,7 @@ const metaFlightsRef = db.collection("meta").doc("flights");
 
 const DEFAULT_FLIGHT = {
   pinHash: null, adminName: "",
+  mustChangePin: false,
   recoveryCodeHash: null,
   tokenVersion: 0, failedAttempts: 0, lockUntil: null,
   lastActiveAt: null,
@@ -146,6 +147,7 @@ app.post("/api/login", async (req, res) => {
   if(isLocked(data)) return res.status(429).json({ message: lockMessage(data) });
 
   if(!data.pinHash){
+    // No PIN set at all yet (neither by owner nor claimed) — first entry becomes it.
     data.pinHash = await bcrypt.hash(pin, 10);
     data.failedAttempts = 0; data.lockUntil = null;
   }else{
@@ -181,6 +183,7 @@ app.post("/api/recover/pin", async (req, res) => {
   if(!ok) return res.status(401).json({ message: "That recovery code doesn't match." });
 
   data.pinHash = await bcrypt.hash(newPin, 10);
+  data.mustChangePin = false;
   data.tokenVersion = (data.tokenVersion || 0) + 1;
   data.failedAttempts = 0; data.lockUntil = null;
   await ref.set(data);
@@ -219,14 +222,51 @@ app.get("/api/owner/flights", ownerMiddleware, async (req, res) => {
   res.json(list);
 });
 
+// Add a flight, optionally pre-assigning an admin name and initial PIN.
+// If an initial PIN is given, the admin is required to change it on first login.
 app.post("/api/owner/flights", ownerMiddleware, async (req, res) => {
   const name = String(req.body.name || "").trim();
+  const adminName = String(req.body.adminName || "").trim();
+  const initialPin = String(req.body.initialPin || "").trim();
   if(!name) return res.status(400).json({ message: "Enter a flight name." });
+  if(initialPin && !/^\d{4,6}$/.test(initialPin)) return res.status(400).json({ message: "Initial PIN must be 4–6 digits." });
+
   const names = await getFlightNames();
   if(names.includes(name)) return res.status(409).json({ message: "That flight name already exists." });
   names.push(name);
   await setFlightNames(names);
-  await flights.doc(name).set(DEFAULT_FLIGHT);
+
+  const flightDoc = { ...DEFAULT_FLIGHT, adminName };
+  if(initialPin){
+    flightDoc.pinHash = await bcrypt.hash(initialPin, 10);
+    flightDoc.mustChangePin = true;
+  }
+  await flights.doc(name).set(flightDoc);
+  res.json({ success: true });
+});
+
+// Assign/update an admin name and/or issue a fresh PIN for an EXISTING flight.
+// Setting a new PIN this way always requires the admin to change it on next login,
+// and immediately signs out any device already using the old PIN.
+app.post("/api/owner/flights/:name/assign", ownerMiddleware, async (req, res) => {
+  const name = req.params.name;
+  const names = await getFlightNames();
+  if(!names.includes(name)) return res.status(404).json({ message: "Flight not found." });
+
+  const { ref, data } = await getOrCreateFlight(name);
+  const adminName = req.body.adminName !== undefined ? String(req.body.adminName).trim() : null;
+  const newPin = req.body.newPin !== undefined ? String(req.body.newPin).trim() : null;
+
+  if(adminName !== null && adminName !== "") data.adminName = adminName;
+  if(newPin){
+    if(!/^\d{4,6}$/.test(newPin)) return res.status(400).json({ message: "PIN must be 4–6 digits." });
+    data.pinHash = await bcrypt.hash(newPin, 10);
+    data.mustChangePin = true;
+    data.tokenVersion = (data.tokenVersion || 0) + 1;
+    data.failedAttempts = 0;
+    data.lockUntil = null;
+  }
+  await ref.set(data);
   res.json({ success: true });
 });
 
@@ -258,6 +298,7 @@ app.post("/api/owner/flights/:name/revoke", ownerMiddleware, async (req, res) =>
   const { ref, data } = await getOrCreateFlight(name);
   data.pinHash = null;
   data.recoveryCodeHash = null;
+  data.mustChangePin = false;
   data.tokenVersion = (data.tokenVersion || 0) + 1;
   data.failedAttempts = 0;
   data.lockUntil = null;
@@ -342,6 +383,22 @@ app.post("/api/flight/pin", async (req, res) => {
   const ok = await bcrypt.compare(oldPin || "", data.pinHash);
   if(!ok) return res.status(401).json({ message: "Current PIN is incorrect." });
   data.pinHash = await bcrypt.hash(newPin, 10);
+  data.mustChangePin = false;
+  data.tokenVersion = (data.tokenVersion || 0) + 1;
+  await ref.set(data);
+  res.json({ success: true });
+});
+
+// Used only right after a super-admin-issued PIN — no old PIN needed since the
+// server already knows they're authenticated with the temporary one.
+app.post("/api/flight/pin/confirm-change", async (req, res) => {
+  const ctx = await loadFlightChecked(req, res); if(!ctx) return;
+  const { ref, data } = ctx;
+  if(!data.mustChangePin) return res.status(400).json({ message: "No PIN change is required right now." });
+  const { newPin } = req.body;
+  if(!/^\d{4,6}$/.test(newPin || "")) return res.status(400).json({ message: "New PIN must be 4–6 digits." });
+  data.pinHash = await bcrypt.hash(newPin, 10);
+  data.mustChangePin = false;
   data.tokenVersion = (data.tokenVersion || 0) + 1;
   await ref.set(data);
   res.json({ success: true });
@@ -502,6 +559,7 @@ app.delete("/api/flight/reset", async (req, res) => {
   const { ref, data } = ctx;
   const fresh = { ...DEFAULT_FLIGHT, pinHash: data.pinHash, recoveryCodeHash: data.recoveryCodeHash,
     tokenVersion: data.tokenVersion, adminName: data.adminName, lastActiveAt: data.lastActiveAt,
+    mustChangePin: data.mustChangePin,
     tubePriceFils: data.tubePriceFils, shuttlesPerTube: data.shuttlesPerTube };
   await ref.set(fresh);
   res.json(publicFlight(req.flightName, fresh));
