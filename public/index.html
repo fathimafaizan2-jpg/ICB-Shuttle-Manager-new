@@ -241,7 +241,6 @@ footer strong{color:var(--navy);}
    API CLIENT (with loading indicator)
    =================================================================== */
 const TOKEN_KEY = "shuttle_token";
-const ACTOR_KEY = "shuttle_actor";
 function getToken(){ return localStorage.getItem(TOKEN_KEY); }
 function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
 function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
@@ -349,7 +348,8 @@ function showUndoBar(message, onUndo){
 }
 
 /* ===================================================================
-   LOGIN + FORGOT PIN (recovery code)
+   LOGIN + FORGOT PIN (recovery code) — no separate "your name" step;
+   the flight's admin name (set in Setup) is the single source of truth.
    =================================================================== */
 const FLIGHT_NAMES = ["Premier Flight","Flight 1","Flight 2","Flight 3","Flight 4A","Flight 4B"];
 
@@ -362,10 +362,6 @@ function pageLogin(){
       <label>Flight</label>
       <select id="loginFlight">${FLIGHT_NAMES.map(n => `<option value="${n}">${n}</option>`).join("")}</select>
     </div>
-    <div class="field" style="text-align:left;margin-bottom:10px">
-      <label>Your name (shown on games you save)</label>
-      <input id="loginActor" placeholder="e.g. Rakesh" style="width:100%" value="${escapeHtml(localStorage.getItem(ACTOR_KEY) || "")}">
-    </div>
     <input class="pin-input" id="loginPin" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
     <button class="primary big" style="width:100%" onclick="attemptLogin()">Continue</button>
     <p style="margin-top:12px"><button class="link-btn" onclick="STATE.page='forgotPin';render()">Forgot your PIN?</button></p>
@@ -375,11 +371,9 @@ function pageLogin(){
 async function attemptLogin(){
   const flightName = document.getElementById("loginFlight").value;
   const pin = document.getElementById("loginPin").value.trim();
-  const actor = document.getElementById("loginActor").value.trim();
   try{
     const data = await api("/api/login", { method:"POST", body: JSON.stringify({ flightName, pin }) });
     setToken(data.token);
-    if(actor) localStorage.setItem(ACTOR_KEY, actor);
     STATE.fl = data.flight;
     STATE.page = "session";
     render();
@@ -393,11 +387,6 @@ function signOut(){
   STATE.fl = null;
   STATE.page = "session";
   render();
-}
-
-function changeActor(){
-  const name = prompt("Your name:", localStorage.getItem(ACTOR_KEY) || "");
-  if(name && name.trim()){ localStorage.setItem(ACTOR_KEY, name.trim()); render(); }
 }
 
 function pageForgotPin(){
@@ -487,14 +476,9 @@ async function render(){
   }
 
   const fl = STATE.fl;
-  const actor = localStorage.getItem(ACTOR_KEY) || "Unnamed";
   document.getElementById("hdrTitle").textContent = fl.flightName;
   document.getElementById("hdrSub").textContent = fl.adminName ? `Admin: ${fl.adminName}` : "Admin name not set — add it in Setup";
-  document.getElementById("hdrActions").innerHTML = `
-    <span class="muted" style="margin-right:10px;color:#c9d2e6;font-size:13px">
-      Logged in as ${escapeHtml(actor)} · <a href="#" onclick="changeActor();return false;" style="color:#e6ecf7">change</a>
-    </span>
-    <button class="ghost" onclick="signOut()">🔒 Sign out</button>`;
+  document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="signOut()">🔒 Sign out</button>`;
 
   document.getElementById("navBar").innerHTML = TABS.map(([id,label]) =>
     `<button data-tab="${id}" class="${STATE.page===id?"active":""}" onclick="goto('${id}')">${label}</button>`).join("");
@@ -529,7 +513,7 @@ function pageSetup(fl){
   <div class="two-col">
     <div class="card">
       <h2 class="tab-setup">${escapeHtml(fl.flightName)} settings</h2>
-      <p class="sub">Set these once. Change them only when stock or pricing changes.</p>
+      <p class="sub">The admin name below is shown in the header and on every game you save.</p>
       <div class="field" style="margin-bottom:12px">
         <label>Flight admin name</label>
         <input id="adminName" value="${escapeHtml(fl.adminName)}" placeholder="e.g. Rakesh" style="width:220px">
@@ -797,7 +781,7 @@ async function saveSession(){
   try{
     STATE.fl = await api("/api/sessions", { method:"POST", body: JSON.stringify({
       date, shuttlesUsed: used, presentIds:[...PRESENT],
-      createdBy: localStorage.getItem(ACTOR_KEY) || ""
+      createdBy: STATE.fl.adminName || ""
     })});
     PRESENT.clear();
     render();
@@ -823,7 +807,7 @@ function deleteSession(id){
 }
 
 /* ===================================================================
-   TAB — PAYMENTS (one amount box per game, one Settle all per player)
+   TAB — PAYMENTS
    =================================================================== */
 let REMINDER_QUEUE = [];
 let REMINDER_POS = 0;
