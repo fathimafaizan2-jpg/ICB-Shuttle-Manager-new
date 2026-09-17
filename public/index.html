@@ -238,9 +238,35 @@ footer strong{color:var(--navy);}
 <div class="toast" id="toast"></div>
 <div class="undo-bar" id="undoBar"></div>
 
+<!-- Firebase Auth — used ONLY for Owner login. Flight admins never touch this. -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, signInWithEmailAndPassword, signOut,
+    setPersistence, browserLocalPersistence
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBFkK6836ChC8xTPGgezxNS9z7uRCqwRvk",
+    authDomain: "icb-shuttle-tracker-new.firebaseapp.com",
+    projectId: "icb-shuttle-tracker-new",
+    storageBucket: "icb-shuttle-tracker-new.firebasestorage.app",
+    messagingSenderId: "546655217740",
+    appId: "1:546655217740:web:ef311849b28e79e0deace9"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const firebaseAuth = getAuth(firebaseApp);
+  await setPersistence(firebaseAuth, browserLocalPersistence);
+
+  window.firebaseAuth = firebaseAuth;
+  window.firebaseSignIn = (email, password) => signInWithEmailAndPassword(firebaseAuth, email, password);
+  window.firebaseSignOut = () => signOut(firebaseAuth);
+</script>
+
 <script>
 /* ===================================================================
-   API CLIENT (with loading indicator)
+   API CLIENTS
    =================================================================== */
 const TOKEN_KEY = "shuttle_token";
 function getToken(){ return localStorage.getItem(TOKEN_KEY); }
@@ -263,6 +289,34 @@ async function api(path, options = {}){
     if(!res.ok) throw new Error(data.message || "Something went wrong.");
     return data;
   } finally { hideLoading(); }
+}
+
+// Owner requests attach a fresh Firebase ID token each time — no manual
+// token storage needed, Firebase's SDK keeps the sign-in state and
+// refreshes tokens automatically.
+async function ownerApi(path, options = {}){
+  showLoading();
+  try{
+    const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+    const user = window.firebaseAuth?.currentUser;
+    if(user){
+      const idToken = await user.getIdToken();
+      headers.Authorization = `Bearer ${idToken}`;
+    }
+    const res = await fetch(path, { ...options, headers });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(data.message || "Something went wrong.");
+    return data;
+  } finally { hideLoading(); }
+}
+
+function mapFirebaseAuthError(err){
+  const code = err?.code || "";
+  if(code.includes("wrong-password") || code.includes("invalid-credential")) return "Incorrect email or password.";
+  if(code.includes("user-not-found")) return "No owner account with that email.";
+  if(code.includes("too-many-requests")) return "Too many attempts — try again in a while.";
+  if(code.includes("invalid-email")) return "Enter a valid email address.";
+  return "Couldn't sign in — please try again.";
 }
 
 const STATE = { fl: null, page: "session" };
@@ -332,8 +386,6 @@ function sessionsInPeriod(fl, period, anchorISO){
   }).sort((a,b) => a.date.localeCompare(b.date));
 }
 
-/* Two-step scoped confirmation: an explanatory confirm(), then a typed
-   word to actually proceed — used by every reset/clear action below. */
 function confirmScoped(message, word){
   if(!confirm(message)) return false;
   const typed = prompt(`Type ${word} to confirm:`);
@@ -358,9 +410,13 @@ function showUndoBar(message, onUndo){
 }
 
 /* ===================================================================
-   LOGIN + FORGOT PIN
+   LOGIN + FORGOT PIN — flight admins, unchanged
    =================================================================== */
-const FLIGHT_NAMES = ["Premier Flight","Flight 1","Flight 2","Flight 3","Flight 4A","Flight 4B"];
+let FLIGHT_NAMES = [];
+async function refreshFlightNames(){
+  try{ FLIGHT_NAMES = await (await fetch("/api/flights")).json(); }
+  catch{ /* keep whatever we had */ }
+}
 
 function pageLogin(){
   return `
@@ -374,6 +430,7 @@ function pageLogin(){
     <input class="pin-input" id="loginPin" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
     <button class="primary big" style="width:100%" onclick="attemptLogin()">Continue</button>
     <p style="margin-top:12px"><button class="link-btn" onclick="STATE.page='forgotPin';render()">Forgot your PIN?</button></p>
+    <p style="margin-top:4px"><button class="link-btn" style="color:var(--muted);text-decoration:none;font-size:12px" onclick="STATE.page='ownerLogin';render()">Owner access</button></p>
   </div>`;
 }
 
@@ -434,6 +491,134 @@ async function resetWithRecoveryCode(){
 }
 
 /* ===================================================================
+   OWNER — Firebase email/password. Manage Flights only, ever.
+   =================================================================== */
+function pageOwnerLogin(){
+  return `
+  <div class="card gate">
+    <h2>Owner access</h2>
+    <p class="sub">Manage the list of flights only — add, rename, or remove them. This screen never shows any flight's members, games, or payments.</p>
+    <div class="field" style="text-align:left;margin-bottom:10px">
+      <label>Email</label>
+      <input id="ownerEmail" type="email" placeholder="you@example.com" style="width:100%">
+    </div>
+    <div class="field" style="text-align:left;margin-bottom:10px">
+      <label>Password</label>
+      <input id="ownerPassword" type="password" placeholder="Password" style="width:100%">
+    </div>
+    <button class="primary big" style="width:100%" onclick="attemptOwnerLogin()">Continue</button>
+    <p style="margin-top:12px"><button class="link-btn" onclick="STATE.page='session';render()">Back to sign in</button></p>
+  </div>`;
+}
+
+async function attemptOwnerLogin(){
+  const email = document.getElementById("ownerEmail").value.trim();
+  const password = document.getElementById("ownerPassword").value;
+  try{
+    await window.firebaseSignIn(email, password);
+    STATE.page = "ownerDashboard";
+    render();
+  }catch(err){
+    toast(mapFirebaseAuthError(err));
+  }
+}
+
+async function ownerSignOut(){
+  if(!confirm("Sign out of Owner access?")) return;
+  await window.firebaseSignOut();
+  STATE.page = "session";
+  render();
+}
+
+let OWNER_FLIGHTS = [];
+
+async function renderOwnerDashboard(){
+  document.getElementById("hdrTitle").textContent = "Owner — Manage Flights";
+  document.getElementById("hdrSub").textContent = "Flight names and status only — never member, game, or payment details.";
+  document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="ownerSignOut()">🔒 Sign out</button>`;
+  document.getElementById("navBar").innerHTML = "";
+
+  try{
+    OWNER_FLIGHTS = await ownerApi("/api/owner/flights");
+  }catch(err){
+    STATE.page = "session";
+    render();
+    toast(err.message);
+    return;
+  }
+
+  const rows = OWNER_FLIGHTS.map(f => `
+    <tr>
+      <td><strong>${escapeHtml(f.name)}</strong></td>
+      <td>${f.claimed ? '<span class="badge b-paid">Claimed</span>' : '<span class="badge b-warn">Not claimed</span>'}</td>
+      <td>${escapeHtml(f.adminName || "—")}</td>
+      <td class="num">${f.memberCount}</td>
+      <td class="num">${f.sessionCount}</td>
+      <td class="num">
+        <button onclick="renameFlight('${encodeURIComponent(f.name)}')">Rename</button>
+        <button class="danger" onclick="removeFlight('${encodeURIComponent(f.name)}', ${f.memberCount}, ${f.sessionCount})">Remove</button>
+      </td>
+    </tr>`).join("");
+
+  document.getElementById("content").innerHTML = `
+    <div class="card">
+      <h2 class="tab-setup">All flights (${OWNER_FLIGHTS.length})</h2>
+      <table>
+        <tr><th>Flight</th><th>Status</th><th>Admin</th><th class="num">Members</th><th class="num">Games</th><th></th></tr>
+        ${rows || `<tr><td colspan="6" class="muted">No flights yet.</td></tr>`}
+      </table>
+    </div>
+    <div class="card">
+      <h2 class="tab-setup">Add a new flight</h2>
+      <div class="row">
+        <input id="newFlightName" placeholder="e.g. Flight 5" style="width:220px" onkeydown="if(event.key==='Enter')addFlight()">
+        <button class="primary" onclick="addFlight()">Add flight</button>
+      </div>
+    </div>`;
+}
+
+async function addFlight(){
+  const name = document.getElementById("newFlightName").value.trim();
+  if(!name){ toast("Enter a flight name."); return; }
+  try{
+    await ownerApi("/api/owner/flights", { method:"POST", body: JSON.stringify({ name }) });
+    toast(`${name} added.`);
+    render();
+  }catch(err){ toast(err.message); }
+}
+
+async function renameFlight(encodedOldName){
+  const oldName = decodeURIComponent(encodedOldName);
+  const newName = prompt(`New name for "${oldName}":`, oldName);
+  if(!newName || !newName.trim() || newName.trim() === oldName) return;
+  const trimmed = newName.trim();
+  const ok = confirmScoped(
+    `Rename "${oldName}" to "${trimmed}"? If that flight's admin is currently signed in, they'll be prompted to sign in again under the new name — their PIN and all data stay exactly the same.`,
+    "RENAME"
+  );
+  if(!ok){ toast("Cancelled."); return; }
+  try{
+    await ownerApi(`/api/owner/flights/${encodeURIComponent(oldName)}/rename`, { method:"PATCH", body: JSON.stringify({ newName: trimmed }) });
+    toast("Flight renamed.");
+    render();
+  }catch(err){ toast(err.message); }
+}
+
+async function removeFlight(encodedName, memberCount, sessionCount){
+  const name = decodeURIComponent(encodedName);
+  const ok = confirmScoped(
+    `This will permanently delete "${name}" — including ${memberCount} member(s) and ${sessionCount} game(s) recorded there. This cannot be undone.`,
+    "DELETE"
+  );
+  if(!ok){ toast("Cancelled."); return; }
+  try{
+    await ownerApi(`/api/owner/flights/${encodeURIComponent(name)}`, { method:"DELETE" });
+    toast(`${name} removed.`);
+    render();
+  }catch(err){ toast(err.message); }
+}
+
+/* ===================================================================
    PUBLIC PLAYER VIEW (?p=token — no login)
    =================================================================== */
 async function renderPublicView(token){
@@ -475,7 +660,21 @@ async function refreshFlight(){
 }
 
 async function render(){
+  if(STATE.page === "ownerLogin"){
+    document.getElementById("hdrTitle").textContent = "Shuttle Session Manager";
+    document.getElementById("hdrSub").textContent = "";
+    document.getElementById("hdrActions").innerHTML = "";
+    document.getElementById("navBar").innerHTML = "";
+    document.getElementById("content").innerHTML = pageOwnerLogin();
+    return;
+  }
+  if(STATE.page === "ownerDashboard"){
+    await renderOwnerDashboard();
+    return;
+  }
+
   if(!getToken() || !STATE.fl){
+    await refreshFlightNames();
     document.getElementById("hdrTitle").textContent = "Shuttle Session Manager";
     document.getElementById("hdrSub").textContent = "";
     document.getElementById("hdrActions").innerHTML = "";
@@ -612,7 +811,7 @@ async function saveSettings(){
 
 async function resetStock(){
   const ok = confirmScoped(
-    `This will reset Flight ${STATE.fl.flightName}'s shuttle stock to 0. Members, games, and settings will NOT be affected.`,
+    `This will reset ${STATE.fl.flightName}'s shuttle stock to 0. Members, games, and settings will NOT be affected.`,
     "RESET"
   );
   if(!ok){ toast("Cancelled."); return; }
@@ -682,7 +881,7 @@ async function deleteMember(id){
 async function clearAllMembers(){
   const count = STATE.fl.members.length;
   const ok = confirmScoped(
-    `This will permanently remove all ${count} member(s) from Flight ${STATE.fl.flightName}. Past game and payment history will still show their names, but they'll no longer appear for attendance. Games, stock, and settings will NOT be affected.`,
+    `This will permanently remove all ${count} member(s) from ${STATE.fl.flightName}. Past game and payment history will still show their names, but they'll no longer appear for attendance. Games, stock, and settings will NOT be affected.`,
     "REMOVE"
   );
   if(!ok){ toast("Cancelled."); return; }
@@ -695,7 +894,7 @@ async function clearAllMembers(){
 async function clearAllSessions(){
   const count = STATE.fl.sessions.length;
   const ok = confirmScoped(
-    `This will permanently delete all ${count} recorded game(s) and their payment history for Flight ${STATE.fl.flightName}. Members, stock, and settings will NOT be affected. This cannot be undone.`,
+    `This will permanently delete all ${count} recorded game(s) and their payment history for ${STATE.fl.flightName}. Members, stock, and settings will NOT be affected. This cannot be undone.`,
     "CLEAR"
   );
   if(!ok){ toast("Cancelled."); return; }
@@ -713,7 +912,7 @@ function copyPlayerLink(token, name){
 
 async function resetFlightData(){
   const ok = confirmScoped(
-    `This will permanently erase ALL members, games, payments, and stock for Flight ${STATE.fl.flightName}. Your PIN and recovery code will be kept. This cannot be undone.`,
+    `This will permanently erase ALL members, games, payments, and stock for ${STATE.fl.flightName}. Your PIN and recovery code will be kept. This cannot be undone.`,
     "ERASE"
   );
   if(!ok){ toast("Cancelled — nothing was deleted."); return; }
