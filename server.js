@@ -14,13 +14,10 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
-const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL;
 const FLIGHT_NAMES = ["Premier Flight","Flight 1","Flight 2","Flight 3","Flight 4A","Flight 4B"];
 
 const LOCK_AFTER_ATTEMPTS = 5;
 const LOCK_MINUTES = 5;
-const RESET_CODE_MINUTES = 10;
 
 /* ===================================================================
    DATABASE — Firestore, one document per flight
@@ -35,15 +32,12 @@ const flights = db.collection("flights");
 const DEFAULT_FLIGHT = {
   pinHash: null, adminName: "",
   recoveryCodeHash: null,
-  email: "", emailVerified: false, emailPendingCode: null, emailPendingExpiresAt: null,
-  emailResetCode: null, emailResetExpiresAt: null,
   tokenVersion: 0, failedAttempts: 0, lockUntil: null,
   tubePriceFils: 14500, shuttlesPerTube: 12, shuttlesInStock: 0,
   members: [], sessions: [], paid: {}
 };
 
 function genToken(){ return crypto.randomBytes(12).toString("hex"); }
-function gen6Digit(){ return String(Math.floor(100000 + Math.random() * 900000)); }
 
 async function getOrCreateFlight(name){
   const ref = flights.doc(name);
@@ -54,25 +48,6 @@ async function getOrCreateFlight(name){
   }
   const data = { ...DEFAULT_FLIGHT, ...snap.data() };
   return { ref, data };
-}
-
-async function sendEmail(to, subject, html){
-  if(!BREVO_API_KEY || !BREVO_SENDER_EMAIL){
-    throw new Error("Email isn't configured yet — ask the admin to set up email sending.");
-  }
-  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "api-key": BREVO_API_KEY },
-    body: JSON.stringify({
-      sender: { email: BREVO_SENDER_EMAIL, name: "Shuttle Session Manager" },
-      to: [{ email: to }],
-      subject, htmlContent: html
-    })
-  });
-  if(!res.ok){
-    const body = await res.text().catch(() => "");
-    throw new Error("Couldn't send the email right now. " + body.slice(0,200));
-  }
 }
 
 /* ===================================================================
@@ -105,7 +80,7 @@ function outstandingFils(data, memberId){
   }, 0);
 }
 function publicFlight(name, data){
-  const { pinHash, recoveryCodeHash, emailPendingCode, emailResetCode, ...rest } = data;
+  const { pinHash, recoveryCodeHash, ...rest } = data;
   return { flightName: name, ...rest, hasPin: !!pinHash, hasRecoveryCode: !!recoveryCodeHash };
 }
 
@@ -179,7 +154,7 @@ app.post("/api/login", async (req, res) => {
   res.json({ token, flight: publicFlight(flightName, data) });
 });
 
-// Reset PIN using the recovery code — fully self-service, no admin involvement.
+// Self-service PIN reset using the recovery code — no admin involvement needed.
 app.post("/api/recover/pin", async (req, res) => {
   const { flightName, recoveryCode, newPin } = req.body;
   if(!FLIGHT_NAMES.includes(flightName)) return res.status(400).json({ message: "Unknown flight." });
@@ -192,44 +167,6 @@ app.post("/api/recover/pin", async (req, res) => {
 
   data.pinHash = await bcrypt.hash(newPin, 10);
   data.tokenVersion = (data.tokenVersion || 0) + 1; // force-expire any existing logins
-  data.failedAttempts = 0; data.lockUntil = null;
-  await ref.set(data);
-  res.json({ success: true });
-});
-
-// Step 1 of email-based reset: send a 6-digit code to the flight's verified email.
-app.post("/api/recover/email/request", async (req, res) => {
-  const { flightName } = req.body;
-  if(!FLIGHT_NAMES.includes(flightName)) return res.status(400).json({ message: "Unknown flight." });
-  const { ref, data } = await getOrCreateFlight(flightName);
-  if(!data.email || !data.emailVerified) return res.status(400).json({ message: "No verified email on file for this flight." });
-
-  const code = gen6Digit();
-  data.emailResetCode = code;
-  data.emailResetExpiresAt = new Date(Date.now() + RESET_CODE_MINUTES * 60000).toISOString();
-  await ref.set(data);
-
-  try{
-    await sendEmail(data.email, "Your Shuttle Session Manager reset code",
-      `<p>Your PIN reset code for <strong>${flightName}</strong> is:</p><h2>${code}</h2><p>This code expires in ${RESET_CODE_MINUTES} minutes.</p>`);
-  }catch(err){ return res.status(500).json({ message: err.message }); }
-
-  res.json({ success: true, message: "Reset code sent to your email." });
-});
-
-// Step 2 of email-based reset: confirm the code, set the new PIN.
-app.post("/api/recover/email/confirm", async (req, res) => {
-  const { flightName, code, newPin } = req.body;
-  if(!/^\d{4,6}$/.test(newPin || "")) return res.status(400).json({ message: "New PIN must be 4–6 digits." });
-  const { ref, data } = await getOrCreateFlight(flightName);
-  if(!data.emailResetCode || !data.emailResetExpiresAt || new Date(data.emailResetExpiresAt) < new Date()){
-    return res.status(400).json({ message: "That code has expired — request a new one." });
-  }
-  if(String(code) !== data.emailResetCode) return res.status(401).json({ message: "Incorrect code." });
-
-  data.pinHash = await bcrypt.hash(newPin, 10);
-  data.emailResetCode = null; data.emailResetExpiresAt = null;
-  data.tokenVersion = (data.tokenVersion || 0) + 1;
   data.failedAttempts = 0; data.lockUntil = null;
   await ref.set(data);
   res.json({ success: true });
@@ -253,9 +190,8 @@ function authMiddleware(req, res, next){
 }
 app.use("/api", authMiddleware);
 
-// Every authenticated route re-checks tokenVersion against the flight's current
-// value, so a PIN reset (recovery, email, or manual change) immediately kicks
-// out anyone still using an old token — no separate revoke list needed.
+// Every authenticated route re-checks tokenVersion, so a PIN reset immediately
+// signs out any other device still using the old token.
 async function loadFlightChecked(req, res){
   const { ref, data } = await getOrCreateFlight(req.flightName);
   if((data.tokenVersion || 0) !== req.tokenVersion){
@@ -295,10 +231,9 @@ app.post("/api/flight/pin", async (req, res) => {
   data.pinHash = await bcrypt.hash(newPin, 10);
   data.tokenVersion = (data.tokenVersion || 0) + 1;
   await ref.set(data);
-  res.json({ success: true, tokenVersion: data.tokenVersion });
+  res.json({ success: true });
 });
 
-// Set/replace the recovery code — just needs to be logged in already.
 app.post("/api/flight/recovery-code", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data } = ctx;
@@ -307,41 +242,6 @@ app.post("/api/flight/recovery-code", async (req, res) => {
   data.recoveryCodeHash = await bcrypt.hash(code, 10);
   await ref.set(data);
   res.json({ success: true });
-});
-
-// Set an email + send it a verification code.
-app.post("/api/flight/email/request", async (req, res) => {
-  const ctx = await loadFlightChecked(req, res); if(!ctx) return;
-  const { ref, data } = ctx;
-  const email = String(req.body.email || "").trim();
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: "Enter a valid email address." });
-
-  const code = gen6Digit();
-  data.emailPendingCode = code;
-  data.emailPendingExpiresAt = new Date(Date.now() + RESET_CODE_MINUTES * 60000).toISOString();
-  data.email = email; data.emailVerified = false;
-  await ref.set(data);
-
-  try{
-    await sendEmail(email, "Verify your email for Shuttle Session Manager",
-      `<p>Your verification code is:</p><h2>${code}</h2><p>This code expires in ${RESET_CODE_MINUTES} minutes.</p>`);
-  }catch(err){ return res.status(500).json({ message: err.message }); }
-
-  res.json({ success: true, message: "Verification code sent." });
-});
-
-app.post("/api/flight/email/confirm", async (req, res) => {
-  const ctx = await loadFlightChecked(req, res); if(!ctx) return;
-  const { ref, data } = ctx;
-  const code = String(req.body.code || "").trim();
-  if(!data.emailPendingCode || !data.emailPendingExpiresAt || new Date(data.emailPendingExpiresAt) < new Date()){
-    return res.status(400).json({ message: "That code has expired — request a new one." });
-  }
-  if(code !== data.emailPendingCode) return res.status(401).json({ message: "Incorrect code." });
-  data.emailVerified = true;
-  data.emailPendingCode = null; data.emailPendingExpiresAt = null;
-  await ref.set(data);
-  res.json(publicFlight(req.flightName, data));
 });
 
 app.post("/api/members", async (req, res) => {
@@ -463,8 +363,8 @@ app.delete("/api/flight/reset", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data } = ctx;
   const fresh = { ...DEFAULT_FLIGHT, pinHash: data.pinHash, recoveryCodeHash: data.recoveryCodeHash,
-    email: data.email, emailVerified: data.emailVerified, tokenVersion: data.tokenVersion,
-    adminName: data.adminName, tubePriceFils: data.tubePriceFils, shuttlesPerTube: data.shuttlesPerTube };
+    tokenVersion: data.tokenVersion, adminName: data.adminName,
+    tubePriceFils: data.tubePriceFils, shuttlesPerTube: data.shuttlesPerTube };
   await ref.set(fresh);
   res.json(publicFlight(req.flightName, fresh));
 });
