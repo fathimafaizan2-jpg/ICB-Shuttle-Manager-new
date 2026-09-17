@@ -13,29 +13,47 @@
   --navy:#1b2a4a; --navy-deep:#122038; --gold:#e8b53c; --court:#1f7a5c;
   --bg:#f5f7fa; --card:#fff; --line:#dfe4ec; --text:#1c2530; --muted:#6b7684;
   --danger:#b3423a; --peach:#fde8dc;
+  --tab-session:#1f7a5c; --tab-payments:#b3423a; --tab-report:#c79a3a; --tab-setup:#3b5f9e;
 }
 *{box-sizing:border-box;}
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;min-height:100vh;}
+#splash{position:fixed;inset:0;background:var(--navy);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999;}
+#splash .logo{font-size:48px;}
+#splash .spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,.25);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+#splash .msg{font-size:14px;color:#c3cddd;}
 header{background:var(--navy);color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+header .brand{display:flex;align-items:center;gap:10px;}
+header .logo{width:34px;height:34px;border-radius:8px;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:18px;}
 header h1{font-size:17px;margin:0;font-weight:600;}
-header .sub{font-size:12px;color:#c3cddd;}
+header .sub{font-size:13px;color:#e8ecf5;font-weight:500;}
 select,button,input{font-family:inherit;font-size:14px;}
 button{cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:6px;padding:8px 13px;}
 button.primary{background:var(--court);color:#fff;border-color:var(--court);}
 button.danger{background:var(--danger);color:#fff;border-color:var(--danger);}
 button.big{padding:12px 20px;font-size:15px;font-weight:600;}
 button.ghost{background:transparent;border-color:#3c4f74;color:#dde4f0;}
+button.wa{background:#25D366;color:#fff;border-color:#25D366;}
+button:disabled{opacity:.5;cursor:not-allowed;}
 input,select{padding:8px 10px;border:1px solid var(--line);border-radius:6px;}
 nav{display:flex;gap:2px;background:var(--navy-deep);padding:0 12px;overflow-x:auto;}
-nav button{background:transparent;color:#b9c4d6;border:none;border-radius:0;padding:12px 18px;border-bottom:3px solid transparent;white-space:nowrap;font-size:14px;}
-nav button.active{color:#fff;border-bottom:3px solid var(--gold);}
-main{max-width:1100px;margin:18px auto;padding:0 16px 70px;}
+nav button{background:transparent;color:#b9c4d6;border:none;border-radius:0;padding:12px 18px;border-bottom:3px solid transparent;white-space:nowrap;font-size:14px;font-weight:600;}
+nav button.active{color:#fff;}
+nav button[data-tab="session"].active{border-bottom:3px solid var(--tab-session);}
+nav button[data-tab="payments"].active{border-bottom:3px solid var(--tab-payments);}
+nav button[data-tab="report"].active{border-bottom:3px solid var(--tab-report);}
+nav button[data-tab="setup"].active{border-bottom:3px solid var(--tab-setup);}
+main{max-width:1100px;margin:18px auto;padding:0 16px 40px;flex:1;width:100%;}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:14px;}
 .card h2{margin:0 0 4px;font-size:16px;color:var(--navy);}
+.card h2.tab-session{color:var(--tab-session);} .card h2.tab-payments{color:var(--tab-payments);}
+.card h2.tab-report{color:var(--tab-report);} .card h2.tab-setup{color:var(--tab-setup);}
 .card .sub{margin:0 0 14px;color:var(--muted);font-size:13px;}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
 .field{display:flex;flex-direction:column;gap:4px;}
 .field label{font-size:12px;color:var(--muted);font-weight:600;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
+@media(max-width:800px){.two-col{grid-template-columns:1fr;}}
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);}
 th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px;}
@@ -43,57 +61,75 @@ th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;le
 .muted{color:var(--muted);font-size:13px;}
 .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
 .b-paid{background:#e3f3ec;color:var(--court);} .b-due{background:#fbe9e8;color:var(--danger);}
+.b-warn{background:#fdeecb;color:#8a5c10;} .b-critical{background:#3a1414;color:#ffb3a8;}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 18px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:99;}
 .toast.show{opacity:1;}
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
-.tile{border:2px solid var(--line);border-radius:10px;padding:14px 10px;text-align:center;cursor:pointer;user-select:none;background:#fff;font-weight:600;font-size:14px;}
-.tile.on{border-color:var(--court);background:#e9f6f1;color:var(--court);}
-.tile .arr{display:block;font-size:11px;font-weight:600;color:var(--danger);margin-top:3px;}
-.summary{background:#f0f4fa;border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;}
-.summary div span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:600;letter-spacing:.4px;}
-.summary div strong{font-size:19px;color:var(--navy);}
+.undo-bar{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--navy-deep);color:#fff;padding:10px 10px 10px 16px;border-radius:8px;font-size:13px;display:none;align-items:center;gap:12px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,.3);}
+.undo-bar.show{display:flex;}
+.undo-bar button{background:var(--gold);color:var(--navy-deep);border:none;font-weight:700;padding:6px 12px;}
+.member-list{display:flex;flex-direction:column;gap:2px;}
+.member-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;}
+.member-row:hover{background:#f6f8fb;}
+.member-row.on{background:#e9f6f1;border-color:var(--court);}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}
+.member-row.on .avatar{background:var(--court);}
+.member-info{flex:1;min-width:0;}
+.member-name{font-weight:600;font-size:14px;}
+.member-owed{font-size:11px;color:var(--danger);font-weight:600;}
+.switch{width:42px;height:24px;border-radius:20px;background:var(--line);position:relative;flex-shrink:0;transition:background .15s;}
+.switch.on{background:var(--court);}
+.switch .knob{width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,.2);}
+.switch.on .knob{left:21px;}
+.present-counter{font-size:13px;color:var(--muted);margin-bottom:10px;}
+.reminder-card{border:2px solid #25D366;background:#f0fdf6;}
 .report{border-collapse:collapse;width:100%;font-size:12px;}
 .report th,.report td{border:1px solid #c9d1de;padding:5px 7px;}
 .report thead th{background:var(--navy);color:#fff;text-align:center;font-size:12px;}
 .report .metric td{background:#f6f7f9;font-weight:600;}
 .report .shr{background:var(--peach);text-align:right;font-variant-numeric:tabular-nums;}
 .report .pmark{text-align:center;font-weight:700;color:var(--court);}
+.report .amark{text-align:center;font-weight:700;color:var(--danger);}
 .report tfoot td{background:var(--gold);font-weight:700;text-align:right;}
 .report .pay{text-align:right;font-weight:700;}
 .danger-zone{border:1px solid var(--danger);background:#fef4f3;}
 .danger-zone h2{color:var(--danger);}
 .gate{max-width:380px;margin:70px auto;text-align:center;}
 .gate .pin-input{font-size:24px;letter-spacing:10px;text-align:center;width:100%;margin:14px 0;}
+footer{text-align:center;padding:16px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);background:#fff;}
 @media print{
   .no-print{display:none!important;}
   body{background:#fff;}
   main{max-width:none;margin:0;padding:0;}
   .card{border:none;padding:0;}
 }
-@media(max-width:600px){.tiles{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){}
 </style>
 </head>
 <body>
+<div id="splash"><div class="logo">🏸</div><div class="spinner"></div><div class="msg" id="splashMsg">Waking up server…</div></div>
+
 <header class="no-print">
-  <div>
-    <h1 id="hdrTitle">🏸 Shuttle Session Manager</h1>
-    <div class="sub" id="hdrSub"></div>
+  <div class="brand">
+    <div class="logo">🏸</div>
+    <div>
+      <h1 id="hdrTitle">Shuttle Session Manager</h1>
+      <div class="sub" id="hdrSub"></div>
+    </div>
   </div>
   <div id="hdrActions"></div>
 </header>
 <nav id="navBar" class="no-print"></nav>
 <main id="content"></main>
+<footer>Powered by <strong>A1 Groups</strong></footer>
 <div class="toast" id="toast"></div>
+<div class="undo-bar" id="undoBar"></div>
 
 <script>
 /* ===================================================================
    API CLIENT
-   The browser stores only the login token — a small credential, not
-   the club's data. Every read and write goes to the server, which is
-   the single source of truth and the only thing that decides which
-   flight's data a given token can see.
    =================================================================== */
 const TOKEN_KEY = "shuttle_token";
+const ACTOR_KEY = "shuttle_actor";
 function getToken(){ return localStorage.getItem(TOKEN_KEY); }
 function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
 function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
@@ -109,7 +145,7 @@ async function api(path, options = {}){
   return data;
 }
 
-const STATE = { fl: null, page: "setup" };
+const STATE = { fl: null, page: "session" };
 
 /* ===================================================================
    HELPERS
@@ -138,14 +174,25 @@ function dayName(iso){
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
+function daysSince(iso){
+  const [y,m,d] = iso.split("-").map(Number);
+  return Math.floor((Date.now() - new Date(y,m-1,d).getTime()) / 86400000);
+}
 const FILS = 1000;
 function bhd(fils){ return (fils / FILS).toFixed(3); }
 function pricePerShuttleFils(price, perTube){ return price / perTube; }
+
+function paidAmountFor(fl, key, share){
+  const v = fl.paid[key];
+  if(v === true) return share;
+  return Number(v) || 0;
+}
 function outstandingFils(fl, memberId){
   return fl.sessions.reduce((sum,s) => {
     const share = s.shares[memberId];
     if(!share) return sum;
-    return fl.paid[`${s.id}_${memberId}`] ? sum : sum + share;
+    const paid = paidAmountFor(fl, `${s.id}_${memberId}`, share);
+    return sum + Math.max(0, share - paid);
   }, 0);
 }
 function sessionsInPeriod(fl, period, anchorISO){
@@ -166,6 +213,23 @@ function sessionsInPeriod(fl, period, anchorISO){
 }
 
 /* ===================================================================
+   UNDO BAR (used for session delete)
+   =================================================================== */
+let UNDO_TIMER = null;
+function showUndoBar(message, onUndo){
+  const bar = document.getElementById("undoBar");
+  bar.innerHTML = `<span>${escapeHtml(message)}</span><button id="undoBtn">Undo</button>`;
+  bar.classList.add("show");
+  document.getElementById("undoBtn").onclick = () => {
+    clearTimeout(UNDO_TIMER);
+    bar.classList.remove("show");
+    onUndo();
+  };
+  clearTimeout(UNDO_TIMER);
+  UNDO_TIMER = setTimeout(() => bar.classList.remove("show"), 5000);
+}
+
+/* ===================================================================
    LOGIN
    =================================================================== */
 const FLIGHT_NAMES = ["Premier Flight","Flight 1","Flight 2","Flight 3","Flight 4A","Flight 4B"];
@@ -179,6 +243,10 @@ function pageLogin(){
       <label>Flight</label>
       <select id="loginFlight">${FLIGHT_NAMES.map(n => `<option value="${n}">${n}</option>`).join("")}</select>
     </div>
+    <div class="field" style="text-align:left;margin-bottom:10px">
+      <label>Your name (shown on games you save)</label>
+      <input id="loginActor" placeholder="e.g. Rakesh" style="width:100%" value="${escapeHtml(localStorage.getItem(ACTOR_KEY) || "")}">
+    </div>
     <input class="pin-input" id="loginPin" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
     <button class="primary big" style="width:100%" onclick="attemptLogin()">Continue</button>
   </div>`;
@@ -187,11 +255,13 @@ function pageLogin(){
 async function attemptLogin(){
   const flightName = document.getElementById("loginFlight").value;
   const pin = document.getElementById("loginPin").value.trim();
+  const actor = document.getElementById("loginActor").value.trim();
   try{
     const data = await api("/api/login", { method:"POST", body: JSON.stringify({ flightName, pin }) });
     setToken(data.token);
+    if(actor) localStorage.setItem(ACTOR_KEY, actor);
     STATE.fl = data.flight;
-    STATE.page = "setup";
+    STATE.page = "session";
     render();
     toast(`Welcome, ${flightName}.`);
   }catch(err){ toast(err.message); }
@@ -204,10 +274,45 @@ function signOut(){
   render();
 }
 
+function changeActor(){
+  const name = prompt("Your name:", localStorage.getItem(ACTOR_KEY) || "");
+  if(name && name.trim()){ localStorage.setItem(ACTOR_KEY, name.trim()); render(); }
+}
+
 /* ===================================================================
-   ROUTER
+   PUBLIC PLAYER VIEW (?p=token — no login)
    =================================================================== */
-const TABS = [["setup","1 · Setup"],["session","2 · New Session"],["payments","3 · Payments"],["report","4 · Report"]];
+async function renderPublicView(token){
+  document.getElementById("navBar").innerHTML = "";
+  document.getElementById("hdrActions").innerHTML = "";
+  try{
+    const res = await fetch(`/api/public/${token}`);
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.message);
+    document.getElementById("hdrTitle").textContent = data.flightName;
+    document.getElementById("hdrSub").textContent = `Balance for ${data.memberName}`;
+    const rows = data.unpaidGames.map(g => `<tr><td>${shortDate(g.date)}</td><td class="num">BHD ${bhd(g.dueFils)}</td></tr>`).join("");
+    document.getElementById("content").innerHTML = `
+      <div class="card" style="max-width:420px;margin:40px auto;text-align:center">
+        <h2>${escapeHtml(data.memberName)}</h2>
+        <p style="font-size:28px;font-weight:700;color:${data.outstandingFils?"var(--danger)":"var(--court)"}">BHD ${bhd(data.outstandingFils)}</p>
+        <p class="muted">${data.outstandingFils ? "outstanding" : "all settled — nothing owed"}</p>
+        ${rows ? `<table style="margin-top:16px"><tr><th>Date</th><th class="num">Amount</th></tr>${rows}</table>` : ""}
+      </div>`;
+  }catch(err){
+    document.getElementById("content").innerHTML = `<div class="card" style="max-width:420px;margin:40px auto;text-align:center"><p class="muted">${escapeHtml(err.message)}</p></div>`;
+  }
+}
+
+/* ===================================================================
+   ROUTER — order: New Session, Payments, Report, Setup
+   =================================================================== */
+const TABS = [
+  ["session","2 · New Session"],
+  ["payments","3 · Payments"],
+  ["report","4 · Report"],
+  ["setup","1 · Setup"]
+];
 
 function goto(page){ STATE.page = page; render(); }
 
@@ -217,7 +322,7 @@ async function refreshFlight(){
 
 async function render(){
   if(!getToken() || !STATE.fl){
-    document.getElementById("hdrTitle").textContent = "🏸 Shuttle Session Manager";
+    document.getElementById("hdrTitle").textContent = "Shuttle Session Manager";
     document.getElementById("hdrSub").textContent = "";
     document.getElementById("hdrActions").innerHTML = "";
     document.getElementById("navBar").innerHTML = "";
@@ -226,68 +331,89 @@ async function render(){
   }
 
   const fl = STATE.fl;
-  document.getElementById("hdrTitle").textContent = `🏸 ${fl.flightName}`;
-  document.getElementById("hdrSub").textContent = fl.adminName ? `Admin: ${fl.adminName}` : "";
-  document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="signOut()">🔒 Sign out</button>`;
+  const actor = localStorage.getItem(ACTOR_KEY) || "Unnamed";
+  document.getElementById("hdrTitle").textContent = fl.flightName;
+  document.getElementById("hdrSub").textContent = fl.adminName ? `Admin: ${fl.adminName}` : "Admin name not set — add it in Setup";
+  document.getElementById("hdrActions").innerHTML = `
+    <span class="muted" style="margin-right:10px;color:#c3cddd;font-size:13px">
+      Logged in as ${escapeHtml(actor)} · <a href="#" onclick="changeActor();return false;" style="color:#dde4f0">change</a>
+    </span>
+    <button class="ghost" onclick="signOut()">🔒 Sign out</button>`;
 
   document.getElementById("navBar").innerHTML = TABS.map(([id,label]) =>
-    `<button class="${STATE.page===id?"active":""}" onclick="goto('${id}')">${label}</button>`).join("");
+    `<button data-tab="${id}" class="${STATE.page===id?"active":""}" onclick="goto('${id}')">${label}</button>`).join("");
 
   const DISPATCH = { setup:pageSetup, session:pageSession, payments:pagePayments, report:pageReport };
   document.getElementById("content").innerHTML = DISPATCH[STATE.page](fl);
 }
 
 /* ===================================================================
-   TAB 1 — SETUP
+   TAB — SETUP
    =================================================================== */
 function pageSetup(fl){
   const perShuttle = fl.shuttlesPerTube > 0 ? pricePerShuttleFils(fl.tubePriceFils, fl.shuttlesPerTube) : 0;
+  const stock = fl.shuttlesInStock || 0;
+
   const rows = fl.members.map((m,i) => {
     const owed = outstandingFils(fl, m.id);
     return `<tr>
       <td class="num">${i+1}</td>
-      <td>${escapeHtml(m.name)}</td>
+      <td>${escapeHtml(m.name)}${m.phone ? `<br><span class="muted">${escapeHtml(m.phone)}</span>` : ""}</td>
       <td>${m.active ? '<span class="badge b-paid">Active</span>' : '<span class="badge b-due">Inactive</span>'}</td>
       <td class="num">${owed ? `<span style="color:var(--danger)">BHD ${bhd(owed)}</span>` : "—"}</td>
       <td class="num">
         <button onclick="toggleMember('${m.id}')">${m.active ? "Deactivate" : "Activate"}</button>
-        <button onclick="renameMember('${m.id}')">Rename</button>
+        <button onclick="editMember('${m.id}')">Edit</button>
+        <button onclick="copyPlayerLink('${m.publicToken}','${escapeHtml(m.name)}')">🔗 Link</button>
+        <button class="danger" onclick="deleteMember('${m.id}')">Delete</button>
       </td></tr>`;
   }).join("");
 
   return `
-  <div class="card">
-    <h2>${escapeHtml(fl.flightName)} settings</h2>
-    <p class="sub">Set these once. Change them only when the shuttle price or tube size changes.</p>
-    <div class="row">
-      <div class="field"><label>Flight admin name</label>
-        <input id="adminName" value="${escapeHtml(fl.adminName)}" placeholder="e.g. Rakesh" style="width:170px"></div>
-      <div class="field"><label>Tube price (BHD)</label>
-        <input type="number" step="0.001" id="tubePrice" value="${bhd(fl.tubePriceFils)}" style="width:130px"></div>
-      <div class="field"><label>Shuttles per tube</label>
-        <input type="number" id="perTube" value="${fl.shuttlesPerTube}" style="width:130px"></div>
-      <div class="field"><label>&nbsp;</label><button class="primary" onclick="saveSettings()">Save settings</button></div>
+  <div class="two-col">
+    <div class="card">
+      <h2 class="tab-setup">${escapeHtml(fl.flightName)} settings</h2>
+      <p class="sub">Set these once. Change them only when stock or pricing changes.</p>
+      <div class="field" style="margin-bottom:10px">
+        <label>Flight admin name</label>
+        <input id="adminName" value="${escapeHtml(fl.adminName)}" placeholder="e.g. Rakesh" style="width:220px">
+      </div>
+      <div class="row">
+        <div class="field"><label>Current stock</label>
+          <div style="padding:8px 0;font-weight:700;color:var(--navy)">
+            ${stock} shuttles <span class="muted" style="font-weight:400">(${(stock/fl.shuttlesPerTube).toFixed(1)} tubes)</span>
+          </div></div>
+        <div class="field"><label>Add tubes (restock)</label>
+          <input type="number" min="0" id="addTubes" placeholder="e.g. 5" style="width:110px"></div>
+        <div class="field"><label>Shuttles per tube</label>
+          <input type="number" id="perTube" value="${fl.shuttlesPerTube}" style="width:110px"></div>
+        <div class="field"><label>Tube price (BHD)</label>
+          <input type="number" step="0.001" id="tubePrice" value="${bhd(fl.tubePriceFils)}" style="width:110px"></div>
+        <div class="field"><label>&nbsp;</label><button class="primary" onclick="saveSettings()">Save settings</button></div>
+      </div>
+      <p class="muted" style="margin-top:12px">Price per shuttle: <strong>BHD ${bhd(perShuttle)}</strong> (${bhd(fl.tubePriceFils)} ÷ ${fl.shuttlesPerTube}).</p>
     </div>
-    <p class="muted" style="margin-top:12px">Price per shuttle: <strong>BHD ${bhd(perShuttle)}</strong> (${bhd(fl.tubePriceFils)} ÷ ${fl.shuttlesPerTube}).</p>
+
+    <div class="card no-print">
+      <h2 class="tab-setup">Change your PIN</h2>
+      <p class="sub">Only someone who already knows the current PIN can change it.</p>
+      <div class="row">
+        <input type="password" inputmode="numeric" maxlength="6" id="oldPin" placeholder="Current PIN" style="width:130px">
+        <input type="password" inputmode="numeric" maxlength="6" id="newPin" placeholder="New PIN" style="width:130px">
+        <button class="primary" onclick="changePin()">Update PIN</button>
+      </div>
+    </div>
   </div>
 
   <div class="card">
-    <h2>Members — ${fl.members.filter(m=>m.active).length} active</h2>
+    <h2 class="tab-setup">Members — ${fl.members.filter(m=>m.active).length} active</h2>
     <div class="row" style="margin-bottom:14px">
-      <input id="newMemberName" placeholder="Member name" style="width:220px" onkeydown="if(event.key==='Enter')addMember()">
+      <input id="newMemberName" placeholder="Member name" style="width:180px" onkeydown="if(event.key==='Enter')addMember()">
+      <input id="newMemberPhone" placeholder="Phone incl. country code" style="width:190px">
       <button class="primary" onclick="addMember()">Add member</button>
     </div>
     <table><tr><th style="width:40px">#</th><th>Name</th><th>Status</th><th class="num">Outstanding</th><th></th></tr>
       ${rows || `<tr><td colspan="5" class="muted">No members yet — add the first one above.</td></tr>`}</table>
-  </div>
-
-  <div class="card no-print">
-    <h2>Change your PIN</h2>
-    <div class="row">
-      <input type="password" inputmode="numeric" maxlength="6" id="oldPin" placeholder="Current PIN" style="width:130px">
-      <input type="password" inputmode="numeric" maxlength="6" id="newPin" placeholder="New PIN" style="width:130px">
-      <button class="primary" onclick="changePin()">Update PIN</button>
-    </div>
   </div>
 
   <div class="card danger-zone no-print">
@@ -302,7 +428,8 @@ async function saveSettings(){
     STATE.fl = await api("/api/flight/settings", { method:"POST", body: JSON.stringify({
       adminName: document.getElementById("adminName").value.trim(),
       tubePriceFils: Math.round(Number(document.getElementById("tubePrice").value) * 1000),
-      shuttlesPerTube: Number(document.getElementById("perTube").value)
+      shuttlesPerTube: Number(document.getElementById("perTube").value),
+      addTubes: Number(document.getElementById("addTubes").value) || 0
     })});
     render(); toast("Settings saved.");
   }catch(err){ toast(err.message); }
@@ -320,9 +447,10 @@ async function changePin(){
 
 async function addMember(){
   const name = document.getElementById("newMemberName").value.trim();
+  const phone = document.getElementById("newMemberPhone").value.trim();
   if(!name){ toast("Type a name first."); return; }
   try{
-    STATE.fl = await api("/api/members", { method:"POST", body: JSON.stringify({ name }) });
+    STATE.fl = await api("/api/members", { method:"POST", body: JSON.stringify({ name, phone }) });
     render(); toast(`${name} added.`);
   }catch(err){ toast(err.message); }
 }
@@ -332,14 +460,31 @@ async function toggleMember(id){
   catch(err){ toast(err.message); }
 }
 
-async function renameMember(id){
+async function editMember(id){
   const m = STATE.fl.members.find(x => x.id===id);
-  const name = prompt("New name:", m.name);
-  if(!name || !name.trim()) return;
+  const name = prompt("Name:", m.name);
+  if(name === null) return;
+  const phone = prompt("Phone (with country code, or blank to clear):", m.phone || "");
+  if(phone === null) return;
   try{
-    STATE.fl = await api(`/api/members/${id}/rename`, { method:"PATCH", body: JSON.stringify({ name: name.trim() }) });
-    render(); toast("Name updated.");
+    STATE.fl = await api(`/api/members/${id}`, { method:"PATCH", body: JSON.stringify({ name: name.trim(), phone: phone.trim() }) });
+    render(); toast("Member updated.");
   }catch(err){ toast(err.message); }
+}
+
+async function deleteMember(id){
+  const m = STATE.fl.members.find(x => x.id===id);
+  if(!confirm(`Permanently delete ${m.name}? This can't be undone.`)) return;
+  try{
+    STATE.fl = await api(`/api/members/${id}`, { method:"DELETE" });
+    render(); toast(`${m.name} deleted.`);
+  }catch(err){ toast(err.message); }
+}
+
+function copyPlayerLink(token, name){
+  const url = `${location.origin}/?p=${token}`;
+  navigator.clipboard.writeText(url).then(() => toast(`Link copied — send it to ${name}.`))
+    .catch(() => toast(url)); // fallback: show it in the toast if clipboard is blocked
 }
 
 async function resetFlightData(){
@@ -352,25 +497,24 @@ async function resetFlightData(){
 }
 
 /* ===================================================================
-   TAB 2 — NEW SESSION
+   TAB — NEW SESSION (searchable member rows, low stock alert)
    =================================================================== */
 let PRESENT = new Set();
 
 function pageSession(fl){
   const active = fl.members.filter(m => m.active);
   if(!active.length){
-    return `<div class="card"><h2>No members yet</h2>
+    return `<div class="card"><h2 class="tab-session">No members yet</h2>
       <p class="sub">Add this flight's members in the Setup tab first.</p>
       <button class="primary" onclick="goto('setup')">Go to Setup</button></div>`;
   }
-  const tiles = active.map(m => {
-    const arrears = outstandingFils(fl, m.id);
-    return `<div class="tile ${PRESENT.has(m.id) ? "on" : ""}" onclick="togglePresent('${m.id}')">
-      ${escapeHtml(m.name)}${arrears ? `<span class="arr">owes ${bhd(arrears)}</span>` : ""}</div>`;
-  }).join("");
+
+  const stock = fl.shuttlesInStock || 0;
+  const lowStock = stock <= fl.shuttlesPerTube;
+  const rows = active.map(m => memberRowHtml(fl, m)).join("");
 
   const recent = fl.sessions.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6).map(s =>
-    `<tr><td>${shortDate(s.date)}<br><span class="muted">${dayName(s.date)}</span></td>
+    `<tr><td>${shortDate(s.date)}<br><span class="muted">${dayName(s.date)}${s.createdBy ? ` · by ${escapeHtml(s.createdBy)}` : ""}</span></td>
       <td class="num">${s.shuttlesUsed}</td><td class="num">${s.presentIds.length}</td>
       <td class="num">${bhd(s.totalCostFils)}</td>
       <td class="num">${bhd(Math.round(s.totalCostFils / s.presentIds.length))}</td>
@@ -378,24 +522,53 @@ function pageSession(fl){
   ).join("");
 
   return `
+  ${lowStock ? `<div class="card no-print" style="border-left:4px solid var(--danger);background:#fef4f3">
+    <h2 style="color:var(--danger)">⚠ Low stock</h2>
+    <p class="sub">Only ${stock} shuttle(s) left (${(stock/fl.shuttlesPerTube).toFixed(1)} tubes). Restock soon from the Setup tab.</p>
+  </div>` : ""}
   <div class="card">
-    <h2>Mark today's game</h2>
+    <h2 class="tab-session">Mark today's game</h2>
     <div class="row" style="margin-bottom:14px">
       <div class="field"><label>Game date</label><input type="date" id="sessionDate" value="${todayISO()}"></div>
       <div class="field"><label>Shuttles used</label>
-        <input type="number" min="0" id="shuttlesUsed" placeholder="e.g. 10" style="width:120px" oninput="refreshPreview()"></div>
+        <input type="number" min="0" max="${stock}" id="shuttlesUsed" placeholder="e.g. 10" style="width:120px" oninput="refreshPreview()"></div>
       <div class="field"><label>&nbsp;</label><button onclick="selectAll()">Select all</button></div>
       <div class="field"><label>&nbsp;</label><button onclick="clearAllPresent()">Clear</button></div>
     </div>
-    <div class="tiles">${tiles}</div>
+    <input type="text" id="memberSearch" placeholder="Search player…" style="width:100%;margin-bottom:8px" oninput="filterMemberList(this.value)">
+    <div class="present-counter" id="presentCounter">${PRESENT.size} of ${active.length} present</div>
+    <div class="member-list" id="memberList">${rows}</div>
     <div class="summary" id="preview" style="margin-top:16px">${previewHtml(fl, 0)}</div>
     <div style="margin-top:16px"><button class="primary big" onclick="saveSession()">Save game &amp; charge players</button></div>
-    <p class="muted" style="margin-top:10px">Price per shuttle: BHD ${bhd(pricePerShuttleFils(fl.tubePriceFils, fl.shuttlesPerTube))}</p>
+    <p class="muted" style="margin-top:10px">
+      Price per shuttle: BHD ${bhd(pricePerShuttleFils(fl.tubePriceFils, fl.shuttlesPerTube))} · Stock: <strong>${stock} shuttles</strong>
+    </p>
   </div>
-  <div class="card"><h2>Recent games</h2>
+  <div class="card"><h2 class="tab-session">Recent games</h2>
     <table><tr><th>Date</th><th class="num">Shuttles</th><th class="num">Present</th><th class="num">Day cost</th><th class="num">Each share</th><th></th></tr>
       ${recent || `<tr><td colspan="6" class="muted">No games saved yet.</td></tr>`}</table>
   </div>`;
+}
+
+function memberRowHtml(fl, m){
+  const arrears = outstandingFils(fl, m.id);
+  const on = PRESENT.has(m.id);
+  const initials = m.name.trim().split(/\s+/).map(w => w[0]).slice(0,2).join("").toUpperCase();
+  return `<div class="member-row ${on?"on":""}" data-id="${m.id}" data-name="${escapeHtml(m.name.toLowerCase())}" onclick="togglePresent('${m.id}')">
+    <div class="avatar">${initials}</div>
+    <div class="member-info">
+      <div class="member-name">${escapeHtml(m.name)}</div>
+      ${arrears ? `<div class="member-owed">owes BHD ${bhd(arrears)}</div>` : ""}
+    </div>
+    <div class="switch ${on?"on":""}"><div class="knob"></div></div>
+  </div>`;
+}
+
+function filterMemberList(query){
+  const q = query.trim().toLowerCase();
+  document.querySelectorAll(".member-row").forEach(row => {
+    row.style.display = row.dataset.name.includes(q) ? "" : "none";
+  });
 }
 
 function previewHtml(fl, used){
@@ -410,24 +583,28 @@ function previewHtml(fl, used){
 }
 function refreshPreview(){
   const used = Number(document.getElementById("shuttlesUsed")?.value || 0);
-  document.getElementById("preview").innerHTML = previewHtml(STATE.fl, used);
+  const el = document.getElementById("preview");
+  if(el) el.innerHTML = previewHtml(STATE.fl, used);
 }
+
 function togglePresent(id){
   PRESENT.has(id) ? PRESENT.delete(id) : PRESENT.add(id);
-  document.querySelectorAll(".tile").forEach((el,i) => {
-    const m = STATE.fl.members.filter(x => x.active)[i];
-    el.classList.toggle("on", PRESENT.has(m.id));
-  });
+  const row = document.querySelector(`.member-row[data-id="${id}"]`);
+  if(row){ row.classList.toggle("on"); row.querySelector(".switch").classList.toggle("on"); }
+  const counter = document.getElementById("presentCounter");
+  if(counter) counter.textContent = `${PRESENT.size} of ${STATE.fl.members.filter(m=>m.active).length} present`;
   refreshPreview();
 }
 function selectAll(){
   STATE.fl.members.filter(m => m.active).forEach(m => PRESENT.add(m.id));
-  document.querySelectorAll(".tile").forEach(el => el.classList.add("on"));
+  document.querySelectorAll(".member-row").forEach(el => { el.classList.add("on"); el.querySelector(".switch").classList.add("on"); });
+  document.getElementById("presentCounter").textContent = `${PRESENT.size} of ${STATE.fl.members.filter(m=>m.active).length} present`;
   refreshPreview();
 }
 function clearAllPresent(){
   PRESENT.clear();
-  document.querySelectorAll(".tile").forEach(el => el.classList.remove("on"));
+  document.querySelectorAll(".member-row").forEach(el => { el.classList.remove("on"); el.querySelector(".switch").classList.remove("on"); });
+  document.getElementById("presentCounter").textContent = `0 of ${STATE.fl.members.filter(m=>m.active).length} present`;
   refreshPreview();
 }
 
@@ -441,52 +618,132 @@ async function saveSession(){
     if(!confirm(`A game is already saved for ${shortDate(date)}. Save another one on the same date?`)) return;
   }
   try{
-    STATE.fl = await api("/api/sessions", { method:"POST", body: JSON.stringify({ date, shuttlesUsed: used, presentIds:[...PRESENT] }) });
+    STATE.fl = await api("/api/sessions", { method:"POST", body: JSON.stringify({
+      date, shuttlesUsed: used, presentIds:[...PRESENT],
+      createdBy: localStorage.getItem(ACTOR_KEY) || ""
+    })});
     PRESENT.clear();
     render();
     toast(`${shortDate(date)} saved.`);
   }catch(err){ toast(err.message); }
 }
 
-async function deleteSession(id){
-  if(!confirm("Delete this game? The charges from it will be removed too.")) return;
-  try{ STATE.fl = await api(`/api/sessions/${id}`, { method:"DELETE" }); render(); toast("Game deleted."); }
-  catch(err){ toast(err.message); }
+// Optimistic delete with a 5-second Undo window before the server call fires.
+function deleteSession(id){
+  const s = STATE.fl.sessions.find(x => x.id===id);
+  if(!s) return;
+  STATE.fl.sessions = STATE.fl.sessions.filter(x => x.id !== id);
+  render();
+  showUndoBar(`Game on ${shortDate(s.date)} deleted.`, () => {
+    STATE.fl.sessions.push(s);
+    STATE.fl.sessions.sort((a,b) => a.date.localeCompare(b.date));
+    render();
+    toast("Restored.");
+  });
+  UNDO_TIMER = setTimeout(async () => {
+    try{ STATE.fl = await api(`/api/sessions/${id}`, { method:"DELETE" }); render(); }
+    catch(err){ toast(err.message); await refreshFlight(); render(); }
+  }, 5000);
 }
 
 /* ===================================================================
-   TAB 3 — PAYMENTS
+   TAB — PAYMENTS (partial pay, select-settle, aging, WhatsApp queue)
    =================================================================== */
+let SELECTED_SESSIONS = {};
+let REMINDER_QUEUE = [];
+let REMINDER_POS = 0;
+
+function agingBadge(days){
+  if(days >= 30) return `<span class="badge b-critical">${days}d</span>`;
+  if(days >= 14) return `<span class="badge b-warn">${days}d</span>`;
+  return "";
+}
+
 function pagePayments(fl){
   const withCharges = fl.members.filter(m => fl.sessions.some(s => s.shares[m.id]));
-  if(!withCharges.length) return `<div class="card"><h2>Nothing to collect yet</h2></div>`;
+  if(!withCharges.length) return `<div class="card"><h2 class="tab-payments">Nothing to collect yet</h2></div>`;
 
   const totalOwed = withCharges.reduce((sum,m) => sum + outstandingFils(fl, m.id), 0);
+  const remindable = withCharges.filter(m => m.phone && outstandingFils(fl, m.id) > 0);
+
+  if(!SELECTED_SESSIONS.__init){ withCharges.forEach(m => { if(!SELECTED_SESSIONS[m.id]) SELECTED_SESSIONS[m.id] = new Set(); }); SELECTED_SESSIONS.__init = true; }
+
   const rows = withCharges.map(m => {
     const owed = outstandingFils(fl, m.id);
-    const unpaid = fl.sessions.filter(s => s.shares[m.id] && !fl.paid[`${s.id}_${m.id}`]);
-    const detail = unpaid.length
-      ? unpaid.map(s => `<span class="badge b-due" style="margin:1px 2px 1px 0;cursor:pointer"
-          onclick="markPaid('${s.id}','${m.id}')">${shortDate(s.date)} · ${bhd(s.shares[m.id])}</span>`).join("")
-      : `<span class="badge b-paid">All settled</span>`;
-    return `<tr><td>${escapeHtml(m.name)}</td><td>${detail}</td>
-      <td class="num"><strong style="color:${owed?"var(--danger)":"var(--court)"}">BHD ${bhd(owed)}</strong></td>
-      <td class="num">${owed ? `<button class="primary" onclick="settleAll('${m.id}')">Settle all</button>` : "—"}</td></tr>`;
+    if(!SELECTED_SESSIONS[m.id]) SELECTED_SESSIONS[m.id] = new Set();
+    const unpaid = fl.sessions.filter(s => {
+      const share = s.shares[m.id];
+      if(!share) return false;
+      return paidAmountFor(fl, `${s.id}_${m.id}`, share) < share;
+    });
+
+    const detail = unpaid.length ? unpaid.map(s => {
+      const share = s.shares[m.id];
+      const paid = paidAmountFor(fl, `${s.id}_${m.id}`, share);
+      const remaining = share - paid;
+      const checked = SELECTED_SESSIONS[m.id].has(s.id) ? "checked" : "";
+      const days = daysSince(s.date);
+      return `<div class="row" style="margin-bottom:4px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px">
+          <input type="checkbox" ${checked} onchange="toggleSelectSession('${m.id}','${s.id}')">
+          ${shortDate(s.date)} — BHD ${bhd(remaining)}${paid > 0 ? ` <span class="muted">(BHD ${bhd(paid)} paid)</span>` : ""} ${agingBadge(days)}
+        </label>
+        <input type="number" step="0.001" min="0" placeholder="partial BHD" id="partial_${s.id}_${m.id}" style="width:100px;font-size:12px">
+        <button onclick="payPartial('${s.id}','${m.id}')">Pay partial</button>
+        <button onclick="payFull('${s.id}','${m.id}')">Pay in full</button>
+      </div>`;
+    }).join("") : `<span class="badge b-paid">All settled</span>`;
+
+    return `<tr>
+      <td style="vertical-align:top;padding-top:12px">${escapeHtml(m.name)}</td>
+      <td>${detail}</td>
+      <td class="num" style="vertical-align:top;padding-top:12px"><strong style="color:${owed?"var(--danger)":"var(--court)"}">BHD ${bhd(owed)}</strong></td>
+      <td class="num" style="vertical-align:top;padding-top:12px">
+        ${owed ? `<button class="primary" onclick="settleSelected('${m.id}')">Settle selected</button>
+                  <button onclick="settleAll('${m.id}')">Settle all</button>` : "—"}
+      </td></tr>`;
   }).join("");
 
-  return `<div class="card"><h2>Who still owes</h2>
+  return `
+  <div class="card"><h2 class="tab-payments">Who still owes</h2>
+    <p class="sub">Tick specific games and "Settle selected," pay a partial amount, or settle everything at once. Orange = 14+ days overdue, dark = 30+ days.</p>
     <div class="summary" style="margin-bottom:16px">
       <div><span>Total outstanding</span><strong style="color:var(--danger)">BHD ${bhd(totalOwed)}</strong></div>
       <div><span>Players owing</span><strong>${withCharges.filter(m => outstandingFils(fl,m.id)>0).length}</strong></div>
       <div><span>Games recorded</span><strong>${fl.sessions.length}</strong></div>
     </div>
-    <table><tr><th>Player</th><th>Unpaid games</th><th class="num">Total due</th><th></th></tr>${rows}</table>
-  </div>`;
+    ${remindable.length ? `<button class="wa" onclick="startReminderQueue()">📱 Send Reminders (${remindable.length})</button>` : ""}
+  </div>
+  <div id="reminderArea"></div>
+  <div class="card"><table><tr><th>Player</th><th>Unpaid games</th><th class="num">Total due</th><th></th></tr>${rows}</table></div>`;
 }
 
-async function markPaid(sessionId, memberId){
+function toggleSelectSession(memberId, sessionId){
+  const set = SELECTED_SESSIONS[memberId];
+  set.has(sessionId) ? set.delete(sessionId) : set.add(sessionId);
+}
+
+async function payFull(sessionId, memberId){
   try{ STATE.fl = await api(`/api/payments/${sessionId}/${memberId}/pay`, { method:"POST" }); render(); toast("Marked as paid."); }
   catch(err){ toast(err.message); }
+}
+async function payPartial(sessionId, memberId){
+  const input = document.getElementById(`partial_${sessionId}_${memberId}`);
+  const amountFils = Math.round(Number(input.value) * 1000);
+  if(!amountFils || amountFils <= 0){ toast("Enter a partial amount in BHD."); return; }
+  try{
+    STATE.fl = await api(`/api/payments/${sessionId}/${memberId}/pay-partial`, { method:"POST", body: JSON.stringify({ amountFils }) });
+    render(); toast("Partial payment recorded.");
+  }catch(err){ toast(err.message); }
+}
+async function settleSelected(memberId){
+  const sessionIds = [...(SELECTED_SESSIONS[memberId] || [])];
+  if(!sessionIds.length){ toast("Tick at least one game first."); return; }
+  try{
+    STATE.fl = await api(`/api/payments/${memberId}/settle-selected`, { method:"POST", body: JSON.stringify({ sessionIds }) });
+    SELECTED_SESSIONS[memberId] = new Set();
+    render(); toast("Selected games settled.");
+  }catch(err){ toast(err.message); }
 }
 async function settleAll(memberId){
   const m = STATE.fl.members.find(x => x.id===memberId);
@@ -495,8 +752,45 @@ async function settleAll(memberId){
   catch(err){ toast(err.message); }
 }
 
+/* Sequential WhatsApp reminders — one shared flow, click-driven so each
+   window.open counts as a genuine user action and isn't popup-blocked. */
+function startReminderQueue(){
+  const fl = STATE.fl;
+  REMINDER_QUEUE = fl.members
+    .filter(m => m.phone && outstandingFils(fl, m.id) > 0)
+    .map(m => ({ id: m.id, name: m.name, phone: m.phone, owed: outstandingFils(fl, m.id) }));
+  REMINDER_POS = 0;
+  renderReminderStep();
+}
+function renderReminderStep(){
+  const area = document.getElementById("reminderArea");
+  if(REMINDER_POS >= REMINDER_QUEUE.length){
+    area.innerHTML = `<div class="card reminder-card"><p>✅ All reminders sent.</p></div>`;
+    return;
+  }
+  const m = REMINDER_QUEUE[REMINDER_POS];
+  area.innerHTML = `<div class="card reminder-card">
+    <h2 style="color:#1c7d43">Reminder ${REMINDER_POS+1} of ${REMINDER_QUEUE.length}</h2>
+    <p><strong>${escapeHtml(m.name)}</strong> owes BHD ${bhd(m.owed)}</p>
+    <div class="row">
+      <button class="wa" onclick="sendCurrentReminder()">📱 Open WhatsApp &amp; next</button>
+      <button onclick="skipCurrentReminder()">Skip</button>
+      <button class="ghost" onclick="document.getElementById('reminderArea').innerHTML=''">Cancel</button>
+    </div>
+  </div>`;
+}
+function sendCurrentReminder(){
+  const m = REMINDER_QUEUE[REMINDER_POS];
+  const digits = m.phone.replace(/[^\d]/g, "");
+  const msg = `Hi ${m.name}, your shuttle payment of BHD ${bhd(m.owed)} for ${STATE.fl.flightName} is pending. Please settle when you can. - ${STATE.fl.adminName || "Admin"}`;
+  window.open(`https://wa.me/${digits}?text=${encodeURIComponent(msg)}`, "_blank");
+  REMINDER_POS++;
+  renderReminderStep();
+}
+function skipCurrentReminder(){ REMINDER_POS++; renderReminderStep(); }
+
 /* ===================================================================
-   TAB 4 — REPORT
+   TAB — REPORT (P/A marks)
    =================================================================== */
 let PERIOD = "month";
 let ANCHOR = todayISO();
@@ -508,21 +802,23 @@ function pageReport(fl){
   const header = sessions.map(s => `<th colspan="2">${shortDate(s.date)}</th>`).join("");
   const metric = (label, fn) => `<tr class="metric"><td></td><td>${label}</td>
     ${sessions.map(s => `<td></td><td class="num">${fn(s)}</td>`).join("")}</tr>`;
+
   const body = members.map((m,i) => {
     const cells = sessions.map(s => s.shares[m.id]
       ? `<td class="pmark">P</td><td class="shr">${bhd(s.shares[m.id])}</td>`
-      : `<td></td><td class="shr"></td>`).join("");
+      : `<td class="amark">A</td><td class="shr"></td>`).join("");
     const owed = outstandingFils(fl, m.id);
     return `<tr><td class="num">${i+1}</td><td>${escapeHtml(m.name)}</td>${cells}
       <td class="pay" style="color:${owed?"var(--danger)":"var(--court)"}">${bhd(owed)}</td></tr>`;
   }).join("");
+
   const footer = `<tr><td></td><td></td>
     ${sessions.map(s => `<td></td><td>${bhd(Object.values(s.shares).reduce((a,b)=>a+b,0))}</td>`).join("")}
     <td>${bhd(members.reduce((sum,m) => sum + outstandingFils(fl,m.id), 0))}</td></tr>`;
   const title = PERIOD === "all" ? "All recorded games" : `${PERIOD_LABEL[PERIOD]} view — ${sessions.length} game(s)`;
 
   return `
-  <div class="card no-print"><h2>Report</h2>
+  <div class="card no-print"><h2 class="tab-report">Report</h2>
     <div class="row">
       <div class="field"><label>Period</label>
         <select onchange="setPeriod(this.value)">${Object.entries(PERIOD_LABEL).map(([k,v]) =>
@@ -533,7 +829,7 @@ function pageReport(fl){
     </div>
   </div>
   <div class="card">
-    <h2 style="text-align:center;font-size:18px">${escapeHtml(fl.flightName)} — Shuttle Cost Sheet</h2>
+    <h2 class="tab-report" style="text-align:center;font-size:18px">${escapeHtml(fl.flightName)} — Shuttle Cost Sheet</h2>
     <p class="sub" style="text-align:center">${title}${fl.adminName ? ` · Admin: ${escapeHtml(fl.adminName)}` : ""}</p>
     ${sessions.length ? `<div style="overflow-x:auto"><table class="report"><thead>
       <tr><th rowspan="2" style="width:38px">S.No</th><th rowspan="2">Name</th>${header}
@@ -554,10 +850,29 @@ function setPeriod(v){ PERIOD = v; render(); }
 function setAnchor(v){ ANCHOR = v; render(); }
 
 /* =============================== BOOT =============================== */
-(async function boot(){
-  if(getToken()){
-    try{ await refreshFlight(); }catch{ /* token invalid/expired — falls back to login screen */ }
+async function wakeServer(){
+  const msgEl = document.getElementById("splashMsg");
+  const start = Date.now();
+  while(true){
+    try{
+      await fetch("/api/ping", { cache: "no-store" });
+      break;
+    }catch{
+      if(Date.now() - start > 55000){ msgEl.textContent = "Still trying — this can take a minute on first load…"; }
+      await new Promise(r => setTimeout(r, 2000));
+    }
   }
+}
+
+(async function boot(){
+  await wakeServer();
+  document.getElementById("splash").style.display = "none";
+
+  const params = new URLSearchParams(location.search);
+  const publicToken = params.get("p");
+  if(publicToken){ await renderPublicView(publicToken); return; }
+
+  if(getToken()){ try{ await refreshFlight(); }catch{} }
   render();
 })();
 </script>
