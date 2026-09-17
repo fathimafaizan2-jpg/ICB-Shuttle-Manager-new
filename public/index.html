@@ -202,6 +202,8 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 
 .danger-zone{border:1.5px solid var(--coral);background:#fdf1f0;}
 .danger-zone h2{color:var(--coral-deep);}
+.zone-warn{border:1.5px solid var(--gold);background:#fffaf0;}
+.zone-warn h2{color:var(--gold-deep);}
 .gate{max-width:400px;margin:70px auto;text-align:center;}
 .gate .pin-input{font-size:26px;letter-spacing:12px;text-align:center;width:100%;margin:16px 0;font-weight:700;}
 
@@ -330,6 +332,14 @@ function sessionsInPeriod(fl, period, anchorISO){
   }).sort((a,b) => a.date.localeCompare(b.date));
 }
 
+/* Two-step scoped confirmation: an explanatory confirm(), then a typed
+   word to actually proceed — used by every reset/clear action below. */
+function confirmScoped(message, word){
+  if(!confirm(message)) return false;
+  const typed = prompt(`Type ${word} to confirm:`);
+  return typed === word;
+}
+
 /* ===================================================================
    UNDO BAR
    =================================================================== */
@@ -348,8 +358,7 @@ function showUndoBar(message, onUndo){
 }
 
 /* ===================================================================
-   LOGIN + FORGOT PIN (recovery code) — no separate "your name" step;
-   the flight's admin name (set in Setup) is the single source of truth.
+   LOGIN + FORGOT PIN
    =================================================================== */
 const FLIGHT_NAMES = ["Premier Flight","Flight 1","Flight 2","Flight 3","Flight 4A","Flight 4B"];
 
@@ -525,13 +534,19 @@ function pageSetup(fl){
           </div></div>
         <div class="field"><label>Add tubes</label>
           <input type="number" min="0" id="addTubes" placeholder="e.g. 5" style="width:100px"></div>
+        <div class="field"><label>Or set exact count</label>
+          <input type="number" min="0" id="setStockExact" placeholder="e.g. 24" style="width:110px"></div>
         <div class="field"><label>Shuttles/tube</label>
           <input type="number" id="perTube" value="${fl.shuttlesPerTube}" style="width:100px"></div>
         <div class="field"><label>Tube price (BHD)</label>
           <input type="number" step="0.001" id="tubePrice" value="${bhd(fl.tubePriceFils)}" style="width:110px"></div>
         <div class="field"><label>&nbsp;</label><button class="primary" onclick="saveSettings()">Save settings</button></div>
       </div>
-      <p class="muted" style="margin-top:12px">Price per shuttle: <strong style="color:var(--navy)">BHD ${bhd(perShuttle)}</strong> (${bhd(fl.tubePriceFils)} ÷ ${fl.shuttlesPerTube}).</p>
+      <p class="muted" style="margin-top:8px">Fill in <strong>either</strong> "Add tubes" (adds on top of current stock) <strong>or</strong> "Set exact count" (overrides it completely) — not both.</p>
+      <p class="muted" style="margin-top:8px">Price per shuttle: <strong style="color:var(--navy)">BHD ${bhd(perShuttle)}</strong> (${bhd(fl.tubePriceFils)} ÷ ${fl.shuttlesPerTube}).</p>
+      <div class="row" style="margin-top:14px">
+        <button class="danger" onclick="resetStock()">Reset stock to 0</button>
+      </div>
     </div>
 
     <div class="card no-print">
@@ -564,12 +579,21 @@ function pageSetup(fl){
     </div>
     <table><tr><th style="width:40px">#</th><th>Name</th><th>Status</th><th class="num">Outstanding</th><th></th></tr>
       ${rows || `<tr><td colspan="5" class="muted">No members yet — add the first one above.</td></tr>`}</table>
+    ${fl.members.length ? `<div class="row" style="margin-top:14px">
+      <button class="danger" onclick="clearAllMembers()">Remove all members</button>
+    </div>` : ""}
+  </div>
+
+  <div class="card zone-warn no-print">
+    <h2>⚠ Clear all games</h2>
+    <p class="sub">Deletes every recorded game and its payment history for this flight. Members, stock, and settings are NOT affected.</p>
+    <button class="danger" onclick="clearAllSessions()">Clear all games</button>
   </div>
 
   <div class="card danger-zone no-print">
-    <h2>⚠ Danger zone</h2>
-    <p class="sub">Data is stored on the server and never deleted automatically. This is the only way to erase it.</p>
-    <button class="danger" onclick="resetFlightData()">Erase this flight's data</button>
+    <h2>⚠ Erase everything</h2>
+    <p class="sub">Deletes ALL members, games, payments, and stock for this flight — a full reset. Your PIN, recovery code, and price settings are kept so you aren't locked out.</p>
+    <button class="danger" onclick="resetFlightData()">Erase everything for this flight</button>
   </div>`;
 }
 
@@ -579,9 +603,22 @@ async function saveSettings(){
       adminName: document.getElementById("adminName").value.trim(),
       tubePriceFils: Math.round(Number(document.getElementById("tubePrice").value) * 1000),
       shuttlesPerTube: Number(document.getElementById("perTube").value),
-      addTubes: Number(document.getElementById("addTubes").value) || 0
+      addTubes: Number(document.getElementById("addTubes").value) || 0,
+      setStockExact: document.getElementById("setStockExact").value
     })});
     render(); toast("Settings saved.");
+  }catch(err){ toast(err.message); }
+}
+
+async function resetStock(){
+  const ok = confirmScoped(
+    `This will reset Flight ${STATE.fl.flightName}'s shuttle stock to 0. Members, games, and settings will NOT be affected.`,
+    "RESET"
+  );
+  if(!ok){ toast("Cancelled."); return; }
+  try{
+    STATE.fl = await api("/api/flight/stock/reset", { method:"POST" });
+    render(); toast("Stock reset to 0.");
   }catch(err){ toast(err.message); }
 }
 
@@ -642,6 +679,32 @@ async function deleteMember(id){
   }catch(err){ toast(err.message); }
 }
 
+async function clearAllMembers(){
+  const count = STATE.fl.members.length;
+  const ok = confirmScoped(
+    `This will permanently remove all ${count} member(s) from Flight ${STATE.fl.flightName}. Past game and payment history will still show their names, but they'll no longer appear for attendance. Games, stock, and settings will NOT be affected.`,
+    "REMOVE"
+  );
+  if(!ok){ toast("Cancelled."); return; }
+  try{
+    STATE.fl = await api("/api/flight/members/clear-all", { method:"DELETE" });
+    render(); toast("All members removed.");
+  }catch(err){ toast(err.message); }
+}
+
+async function clearAllSessions(){
+  const count = STATE.fl.sessions.length;
+  const ok = confirmScoped(
+    `This will permanently delete all ${count} recorded game(s) and their payment history for Flight ${STATE.fl.flightName}. Members, stock, and settings will NOT be affected. This cannot be undone.`,
+    "CLEAR"
+  );
+  if(!ok){ toast("Cancelled."); return; }
+  try{
+    STATE.fl = await api("/api/flight/sessions/clear-all", { method:"DELETE" });
+    render(); toast("All games cleared.");
+  }catch(err){ toast(err.message); }
+}
+
 function copyPlayerLink(token, name){
   const url = `${location.origin}/?p=${token}`;
   navigator.clipboard.writeText(url).then(() => toast(`Link copied — send it to ${name}.`))
@@ -649,8 +712,11 @@ function copyPlayerLink(token, name){
 }
 
 async function resetFlightData(){
-  const typed = prompt('Type DELETE to permanently erase this flight\'s members, sessions and payments:');
-  if(typed !== "DELETE"){ toast("Cancelled — nothing was deleted."); return; }
+  const ok = confirmScoped(
+    `This will permanently erase ALL members, games, payments, and stock for Flight ${STATE.fl.flightName}. Your PIN and recovery code will be kept. This cannot be undone.`,
+    "ERASE"
+  );
+  if(!ok){ toast("Cancelled — nothing was deleted."); return; }
   try{
     STATE.fl = await api("/api/flight/reset", { method:"DELETE" });
     render(); toast("This flight's data was erased.");
