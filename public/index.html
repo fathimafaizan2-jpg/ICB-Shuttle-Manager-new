@@ -204,6 +204,12 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 .gate{max-width:400px;margin:70px auto;text-align:center;}
 .gate .pin-input{font-size:26px;letter-spacing:12px;text-align:center;width:100%;margin:16px 0;font-weight:700;}
 
+.flight-card{border:1.5px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;background:#fff;}
+.flight-card-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+.flight-card-name{font-weight:800;font-size:16px;font-family:'Poppins',sans-serif;color:var(--navy);}
+.flight-card-meta{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px;font-size:13px;}
+.flight-card-meta div span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:700;}
+
 footer{text-align:center;padding:18px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);background:#fff;}
 footer strong{color:var(--navy);}
 
@@ -636,33 +642,33 @@ async function renderOwnerDashboard(){
     return;
   }
 
-  const rows = OWNER_FLIGHTS.map(f => `
-    <tr>
-      <td><strong>${escapeHtml(f.name)}</strong></td>
-      <td>${f.claimed ? '<span class="badge b-paid">Claimed</span>' : '<span class="badge b-warn">Not claimed</span>'}</td>
-      <td>${f.adminNames.length ? escapeHtml(f.adminNames.join(", ")) : "—"}</td>
-      <td class="muted" style="font-size:12px">${timeAgo(f.lastActiveAt)}</td>
-      <td class="num">${f.memberCount}</td>
-      <td class="num">${f.sessionCount}</td>
-      <td>
-        <select onchange="handleOwnerRowAction(this,'${encodeURIComponent(f.name)}')" style="width:100%">
-          <option value="">Actions…</option>
-          <option value="assign">Assign / add admin</option>
-          <option value="rename">Rename flight</option>
-          <option value="revoke">Revoke an admin</option>
-          <option value="logs">View logs</option>
-          <option value="remove">Remove flight</option>
-        </select>
-      </td>
-    </tr>`).join("");
+  const cards = OWNER_FLIGHTS.map(f => `
+    <div class="flight-card">
+      <div class="flight-card-top">
+        <span class="flight-card-name">${escapeHtml(f.name)}</span>
+        ${f.claimed ? '<span class="badge b-paid">Claimed</span>' : '<span class="badge b-warn">Not claimed</span>'}
+      </div>
+      <div class="flight-card-meta">
+        <div><span>Admin(s)</span>${f.adminNames.length ? escapeHtml(f.adminNames.join(", ")) : "—"}</div>
+        <div><span>Last active</span>${timeAgo(f.lastActiveAt)}</div>
+        <div><span>Members</span>${f.memberCount}</div>
+        <div><span>Games</span>${f.sessionCount}</div>
+      </div>
+      <select onchange="handleOwnerRowAction(this,'${encodeURIComponent(f.name)}')" style="width:100%;margin-top:12px">
+        <option value="">Actions…</option>
+        <option value="assign">Assign / add admin</option>
+        <option value="rename">Rename flight</option>
+        <option value="revoke">Revoke an admin</option>
+        <option value="erase">Erase flight data</option>
+        <option value="logs">View logs</option>
+        <option value="remove">Remove flight entirely</option>
+      </select>
+    </div>`).join("");
 
   document.getElementById("content").innerHTML = `
     <div class="card">
       <h2 class="tab-setup">All flights (${OWNER_FLIGHTS.length})</h2>
-      <div style="overflow-x:auto"><table>
-        <tr><th>Flight</th><th>Status</th><th>Admin(s)</th><th>Last active</th><th class="num">Members</th><th class="num">Games</th><th>Actions</th></tr>
-        ${rows || `<tr><td colspan="7" class="muted">No flights yet.</td></tr>`}
-      </table></div>
+      ${cards || `<p class="muted">No flights yet.</p>`}
     </div>
     <div class="card">
       <h2 class="tab-setup">Add a new flight</h2>
@@ -684,6 +690,7 @@ function handleOwnerRowAction(selectEl, encodedName){
   if(action === "assign") return assignFlightAdmin(encodedName);
   if(action === "rename") return renameFlight(encodedName);
   if(action === "revoke") return revokeFlightAccess(encodedName, f);
+  if(action === "erase") return eraseFlightData(encodedName);
   if(action === "logs") return viewFlightLogs(encodedName);
   if(action === "remove") return removeFlight(encodedName, f.memberCount, f.sessionCount);
 }
@@ -744,6 +751,20 @@ async function revokeFlightAccess(encodedName, f){
   try{
     await ownerApi(`/api/owner/flights/${encodeURIComponent(name)}/revoke`, { method:"POST", body: JSON.stringify({ adminName: adminName.trim() }) });
     toast(`Access revoked for ${adminName.trim()}.`);
+    render();
+  }catch(err){ toast(err.message); }
+}
+
+async function eraseFlightData(encodedName){
+  const name = decodeURIComponent(encodedName);
+  const ok = confirmScoped(
+    `This will permanently erase all members, games, payments, and stock for "${name}". Its admins and their PINs will be kept — only the data is wiped. This cannot be undone.`,
+    "ERASE"
+  );
+  if(!ok){ toast("Cancelled."); return; }
+  try{
+    await ownerApi(`/api/owner/flights/${encodeURIComponent(name)}/erase-data`, { method:"POST" });
+    toast(`${name}'s data erased.`);
     render();
   }catch(err){ toast(err.message); }
 }
