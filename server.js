@@ -29,12 +29,16 @@ const db = admin.firestore();
 const flights = db.collection("flights");
 const metaFlightsRef = db.collection("meta").doc("flights");
 
-const DEFAULT_FLIGHT = {
-  admins: [], // {id, name, pinHash, mustChangePin, recoveryCodeHash, tokenVersion, failedAttempts, lockUntil, lastActiveAt}
-  tubePriceFils: 14500, shuttlesPerTube: 12, shuttlesInStock: 0,
-  members: [], sessions: [], paid: {},
-  auditLog: [] // {ts, actor, action}
-};
+// A function, not a shared object — every call returns a brand-new set of
+// arrays/objects, so no two flights can ever accidentally reference the same one.
+function defaultFlight(){
+  return {
+    admins: [], // {id, name, pinHash, mustChangePin, recoveryCodeHash, tokenVersion, failedAttempts, lockUntil, lastActiveAt}
+    tubePriceFils: 14500, shuttlesPerTube: 12, shuttlesInStock: 0,
+    members: [], sessions: [], paid: {},
+    auditLog: [] // {ts, actor, action}
+  };
+}
 
 function genToken(){ return crypto.randomBytes(12).toString("hex"); }
 function genId(prefix){ return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
@@ -76,10 +80,11 @@ async function getOrCreateFlight(name){
   const ref = flights.doc(name);
   const snap = await ref.get();
   if(!snap.exists){
-    await ref.set(DEFAULT_FLIGHT);
-    return { ref, data: { ...DEFAULT_FLIGHT } };
+    const fresh = defaultFlight();
+    await ref.set(fresh);
+    return { ref, data: fresh };
   }
-  const data = { ...DEFAULT_FLIGHT, ...snap.data() };
+  const data = { ...defaultFlight(), ...snap.data() };
   return { ref, data };
 }
 
@@ -145,7 +150,7 @@ app.get("/api/flights", async (req, res) => res.json(await getFlightNames()));
 app.get("/api/public/:token", async (req, res) => {
   const snapshot = await flights.get();
   for(const doc of snapshot.docs){
-    const data = { ...DEFAULT_FLIGHT, ...doc.data() };
+    const data = { ...defaultFlight(), ...doc.data() };
     const m = (data.members || []).find(x => x.publicToken === req.params.token);
     if(m){
       const owed = outstandingFils(data, m.id);
@@ -165,7 +170,7 @@ app.get("/api/public/:token", async (req, res) => {
 });
 
 /* ===================================================================
-   LOGIN + RECOVERY (per-admin now, name + PIN both required, always)
+   LOGIN + RECOVERY (per-admin, name + PIN both required, always)
    =================================================================== */
 function isLocked(entity){
   return entity.lockUntil && new Date(entity.lockUntil).getTime() > Date.now();
@@ -291,7 +296,7 @@ app.post("/api/owner/flights", ownerMiddleware, async (req, res) => {
   names.push(name);
   await setFlightNames(names);
 
-  const flightDoc = { ...DEFAULT_FLIGHT, admins: [], members: [], sessions: [], paid: {}, auditLog: [] };
+  const flightDoc = defaultFlight();
   if(adminName && initialPin){
     const a = { id: genId("a"), name: adminName, pinHash: await bcrypt.hash(initialPin, 10),
       mustChangePin: true, recoveryCodeHash: null, tokenVersion: 0, failedAttempts: 0, lockUntil: null, lastActiveAt: null };
@@ -345,7 +350,7 @@ app.patch("/api/owner/flights/:name/rename", ownerMiddleware, async (req, res) =
 
   const oldRef = flights.doc(oldName);
   const snap = await oldRef.get();
-  const data = snap.exists ? snap.data() : { ...DEFAULT_FLIGHT };
+  const data = snap.exists ? snap.data() : defaultFlight();
   await flights.doc(newName).set(data);
   await oldRef.delete();
 
@@ -370,6 +375,20 @@ app.post("/api/owner/flights/:name/revoke", ownerMiddleware, async (req, res) =>
   a.failedAttempts = 0; a.lockUntil = null;
   logEvent(data, "Super Admin", `Revoked access for admin: ${a.name}`);
   await ref.set(data);
+  res.json({ success: true });
+});
+
+// Super Admin can wipe a flight's data without needing to log in as its admin.
+// Admins and their PINs are kept — only members/games/payments/stock are cleared.
+app.post("/api/owner/flights/:name/erase-data", ownerMiddleware, async (req, res) => {
+  const name = req.params.name;
+  const names = await getFlightNames();
+  if(!names.includes(name)) return res.status(404).json({ message: "Flight not found." });
+  const { ref, data } = await getOrCreateFlight(name);
+  const fresh = { ...defaultFlight(), admins: data.admins, auditLog: data.auditLog || [],
+    tubePriceFils: data.tubePriceFils, shuttlesPerTube: data.shuttlesPerTube };
+  logEvent(fresh, "Super Admin", "Erased all members, games, payments and stock for this flight");
+  await ref.set(fresh);
   res.json({ success: true });
 });
 
@@ -680,7 +699,7 @@ app.post("/api/payments/:memberId/settle-all", async (req, res) => {
 app.delete("/api/flight/reset", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data, admin: adm } = ctx;
-  const fresh = { ...DEFAULT_FLIGHT, admins: data.admins, auditLog: data.auditLog || [],
+  const fresh = { ...defaultFlight(), admins: data.admins, auditLog: data.auditLog || [],
     tubePriceFils: data.tubePriceFils, shuttlesPerTube: data.shuttlesPerTube };
   logEvent(fresh, adm.name, "Erased all members, games, payments and stock for this flight");
   await ref.set(fresh);
