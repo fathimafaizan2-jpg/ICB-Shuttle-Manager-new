@@ -105,6 +105,8 @@ nav button[data-tab="report"].active{border-bottom-color:var(--gold);}
 nav button[data-tab="logs"].active{border-bottom-color:#a78bfa;}
 nav button[data-tab="admins"].active{border-bottom-color:#38bdf8;}
 nav button[data-tab="setup"].active{border-bottom-color:#7ea6ff;}
+nav button[data-tab="ownerDashboard"].active{border-bottom-color:var(--gold);}
+nav button[data-tab="ownerLogs"].active{border-bottom-color:#a78bfa;}
 
 main{max-width:1100px;margin:20px auto;padding:0 16px 44px;flex:1;width:100%;}
 .card{
@@ -207,8 +209,7 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 .flight-card{border:1.5px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;background:#fff;}
 .flight-card-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
 .flight-card-name{font-weight:800;font-size:16px;font-family:'Poppins',sans-serif;color:var(--navy);}
-.flight-card-meta{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px;font-size:13px;}
-.flight-card-meta div span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:700;}
+.flight-card-line{font-size:12px;color:var(--muted);margin:3px 0;}
 
 footer{text-align:center;padding:18px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);background:#fff;}
 footer strong{color:var(--navy);}
@@ -626,12 +627,18 @@ async function ownerSignOut(){
 }
 
 let OWNER_FLIGHTS = [];
+const OWNER_TABS = [["ownerDashboard","Flights"],["ownerLogs","Logs"]];
+
+function ownerNavHtml(){
+  return OWNER_TABS.map(([id,label]) =>
+    `<button data-tab="${id}" class="${STATE.page===id?"active":""}" onclick="STATE.page='${id}';render()">${label}</button>`).join("");
+}
 
 async function renderOwnerDashboard(){
-  document.getElementById("hdrTitle").textContent = "Super Admin — Manage Flights";
-  document.getElementById("hdrSub").textContent = "Flight names, admins, and full activity logs.";
+  document.getElementById("hdrTitle").textContent = "Super Admin";
+  document.getElementById("hdrSub").textContent = "";
   document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="ownerSignOut()">🔒 Sign out</button>`;
-  document.getElementById("navBar").innerHTML = "";
+  document.getElementById("navBar").innerHTML = ownerNavHtml();
 
   try{
     OWNER_FLIGHTS = await ownerApi("/api/owner/flights");
@@ -648,20 +655,16 @@ async function renderOwnerDashboard(){
         <span class="flight-card-name">${escapeHtml(f.name)}</span>
         ${f.claimed ? '<span class="badge b-paid">Claimed</span>' : '<span class="badge b-warn">Not claimed</span>'}
       </div>
-      <div class="flight-card-meta">
-        <div><span>Admin(s)</span>${f.adminNames.length ? escapeHtml(f.adminNames.join(", ")) : "—"}</div>
-        <div><span>Last active</span>${timeAgo(f.lastActiveAt)}</div>
-        <div><span>Members</span>${f.memberCount}</div>
-        <div><span>Games</span>${f.sessionCount}</div>
-      </div>
-      <select onchange="handleOwnerRowAction(this,'${encodeURIComponent(f.name)}')" style="width:100%;margin-top:12px">
-        <option value="">Actions…</option>
-        <option value="assign">Assign / add admin</option>
-        <option value="rename">Rename flight</option>
-        <option value="revoke">Revoke an admin</option>
-        <option value="erase">Erase flight data</option>
-        <option value="logs">View logs</option>
-        <option value="remove">Remove flight entirely</option>
+      <p class="flight-card-line">Admin: ${f.adminNames.length ? escapeHtml(f.adminNames.join(", ")) : "—"} · Active: ${timeAgo(f.lastActiveAt)}</p>
+      <p class="flight-card-line">Members: ${f.memberCount} · Games: ${f.sessionCount}</p>
+      <select onchange="handleOwnerRowAction(this,'${encodeURIComponent(f.name)}')" style="width:100%;margin-top:8px">
+        <option value="">Choose action</option>
+        <option value="assign">Add admin</option>
+        <option value="rename">Rename</option>
+        <option value="revoke">Remove admin</option>
+        <option value="erase">Erase data</option>
+        <option value="logs">Flight logs</option>
+        <option value="remove">Delete flight</option>
       </select>
     </div>`).join("");
 
@@ -671,14 +674,14 @@ async function renderOwnerDashboard(){
       ${cards || `<p class="muted">No flights yet.</p>`}
     </div>
     <div class="card">
-      <h2 class="tab-setup">Add a new flight</h2>
+      <h2 class="tab-setup">Add a flight</h2>
       <div class="row">
         <input id="newFlightName" placeholder="e.g. Flight 5" style="width:150px">
         <input id="newFlightAdmin" placeholder="Admin name" style="width:150px">
         <input id="newFlightPin" type="password" inputmode="numeric" maxlength="6" placeholder="Initial PIN" style="width:150px">
-        <button class="primary" onclick="addFlight()">Add flight</button>
+        <button class="primary" onclick="addFlight()">Add</button>
       </div>
-      <p class="muted" style="margin-top:8px">The admin will be prompted to set their own PIN the first time they sign in.</p>
+      <p class="muted" style="margin-top:8px">The admin sets their own PIN the first time they sign in.</p>
     </div>`;
 }
 
@@ -700,7 +703,7 @@ async function addFlight(){
   const adminName = document.getElementById("newFlightAdmin").value.trim();
   const initialPin = document.getElementById("newFlightPin").value.trim();
   if(!name){ toast("Enter a flight name."); return; }
-  if(initialPin && !/^\d{4,6}$/.test(initialPin)){ toast("Initial PIN must be 4–6 digits."); return; }
+  if(initialPin && !/^\d{4,6}$/.test(initialPin)){ toast("PIN must be 4–6 digits."); return; }
   try{
     await ownerApi("/api/owner/flights", { method:"POST", body: JSON.stringify({ name, adminName, initialPin }) });
     toast(`${name} added.`);
@@ -710,13 +713,13 @@ async function addFlight(){
 
 async function assignFlightAdmin(encodedName){
   const name = decodeURIComponent(encodedName);
-  const adminName = prompt(`Admin name to add or reissue a PIN for on "${name}":`);
+  const adminName = prompt(`Add or update admin for "${name}" — enter their name:`);
   if(!adminName || !adminName.trim()) return;
   const newPin = prompt(`Set a PIN for ${adminName.trim()} (4–6 digits):`);
   if(!newPin || !/^\d{4,6}$/.test(newPin)){ toast("PIN must be 4–6 digits."); return; }
   try{
     await ownerApi(`/api/owner/flights/${encodeURIComponent(name)}/assign`, { method:"POST", body: JSON.stringify({ adminName: adminName.trim(), newPin }) });
-    toast(`${adminName.trim()} can now sign in to ${name} — they'll be asked to set their own PIN.`);
+    toast(`${adminName.trim()} can sign in now — they'll set their own PIN.`);
     render();
   }catch(err){ toast(err.message); }
 }
@@ -725,32 +728,27 @@ async function renameFlight(encodedOldName){
   const oldName = decodeURIComponent(encodedOldName);
   const newName = prompt(`New name for "${oldName}":`, oldName);
   if(!newName || !newName.trim() || newName.trim() === oldName) return;
-  const trimmed = newName.trim();
-  const ok = confirmScoped(
-    `Rename "${oldName}" to "${trimmed}"? Any admin currently signed in will be prompted to sign in again under the new name — their PIN and all data stay exactly the same.`,
-    "RENAME"
-  );
-  if(!ok){ toast("Cancelled."); return; }
   try{
-    await ownerApi(`/api/owner/flights/${encodeURIComponent(oldName)}/rename`, { method:"PATCH", body: JSON.stringify({ newName: trimmed }) });
-    toast("Flight renamed.");
+    await ownerApi(`/api/owner/flights/${encodeURIComponent(oldName)}/rename`, { method:"PATCH", body: JSON.stringify({ newName: newName.trim() }) });
+    toast("Renamed.");
     render();
   }catch(err){ toast(err.message); }
 }
 
+// One prompt: type the admin's exact name to remove them. If there's only
+// one admin, their name is pre-filled — just press OK to confirm.
 async function revokeFlightAccess(encodedName, f){
   const name = decodeURIComponent(encodedName);
-  if(!f || !f.adminNames.length){ toast(`${name} has no admins yet.`); return; }
-  const adminName = prompt(`Which admin's access do you want to revoke for "${name}"?\nCurrent admins: ${f.adminNames.join(", ")}`);
-  if(!adminName || !adminName.trim()) return;
-  const ok = confirmScoped(
-    `This will immediately lock out ${adminName.trim()} from "${name}" — their PIN and recovery code stop working right away. All flight data stays exactly as it is. Use "Assign / add admin" afterward to issue them a new PIN.`,
-    "REVOKE"
-  );
-  if(!ok){ toast("Cancelled."); return; }
+  if(!f || !f.adminNames.length){ toast(`${name} has no admin yet.`); return; }
+  const suggestion = f.adminNames.length === 1 ? f.adminNames[0] : "";
+  const label = f.adminNames.length > 1
+    ? `Type the name of the admin to remove from "${name}":\n(${f.adminNames.join(", ")})`
+    : `Remove ${f.adminNames[0]} as admin of "${name}"? Type their name to confirm:`;
+  const typed = prompt(label, suggestion);
+  if(!typed || !typed.trim()) return;
   try{
-    await ownerApi(`/api/owner/flights/${encodeURIComponent(name)}/revoke`, { method:"POST", body: JSON.stringify({ adminName: adminName.trim() }) });
-    toast(`Access revoked for ${adminName.trim()}.`);
+    await ownerApi(`/api/owner/flights/${encodeURIComponent(name)}/revoke`, { method:"POST", body: JSON.stringify({ adminName: typed.trim() }) });
+    toast(`${typed.trim()} removed.`);
     render();
   }catch(err){ toast(err.message); }
 }
@@ -758,7 +756,7 @@ async function revokeFlightAccess(encodedName, f){
 async function eraseFlightData(encodedName){
   const name = decodeURIComponent(encodedName);
   const ok = confirmScoped(
-    `This will permanently erase all members, games, payments, and stock for "${name}". Its admins and their PINs will be kept — only the data is wiped. This cannot be undone.`,
+    `Erase all members, games and payments for "${name}"? Admins and PINs stay. This can't be undone.`,
     "ERASE"
   );
   if(!ok){ toast("Cancelled."); return; }
@@ -778,12 +776,10 @@ function viewFlightLogs(encodedName){
 }
 
 async function renderOwnerFlightLogs(){
-  document.getElementById("hdrTitle").textContent = `Logs — ${OWNER_LOG_FLIGHT}`;
-  document.getElementById("hdrSub").textContent = "Full activity for this flight, visible to Super Admin.";
-  document.getElementById("hdrActions").innerHTML = `
-    <button class="ghost" onclick="STATE.page='ownerDashboard';render()">⬅ Back</button>
-    <button class="ghost" onclick="ownerSignOut()">🔒 Sign out</button>`;
-  document.getElementById("navBar").innerHTML = "";
+  document.getElementById("hdrTitle").textContent = OWNER_LOG_FLIGHT;
+  document.getElementById("hdrSub").textContent = "";
+  document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="ownerSignOut()">🔒 Sign out</button>`;
+  document.getElementById("navBar").innerHTML = ownerNavHtml();
 
   let logData;
   try{
@@ -797,16 +793,48 @@ async function renderOwnerFlightLogs(){
   document.getElementById("content").innerHTML = renderLogsHtml(logData.sessions, logData.auditLog, logData.members);
 }
 
+async function renderOwnerLogsAll(){
+  document.getElementById("hdrTitle").textContent = "Logs";
+  document.getElementById("hdrSub").textContent = "Every flight's activity, newest first.";
+  document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="ownerSignOut()">🔒 Sign out</button>`;
+  document.getElementById("navBar").innerHTML = ownerNavHtml();
+
+  let entries;
+  try{
+    entries = await ownerApi("/api/owner/logs");
+  }catch(err){
+    toast(err.message);
+    STATE.page = "ownerDashboard";
+    render();
+    return;
+  }
+
+  const rows = entries.map(e => `<tr>
+    <td style="white-space:nowrap;font-size:12px">${new Date(e.ts).toLocaleString()}</td>
+    <td><strong>${escapeHtml(e.flight)}</strong></td>
+    <td>${escapeHtml(e.actor)}</td>
+    <td>${escapeHtml(e.action)}</td>
+  </tr>`).join("");
+
+  document.getElementById("content").innerHTML = `
+    <div class="card">
+      <div style="overflow-x:auto"><table>
+        <tr><th>Time</th><th>Flight</th><th>By</th><th>What</th></tr>
+        ${rows || `<tr><td colspan="4" class="muted">No activity yet.</td></tr>`}
+      </table></div>
+    </div>`;
+}
+
 async function removeFlight(encodedName, memberCount, sessionCount){
   const name = decodeURIComponent(encodedName);
   const ok = confirmScoped(
-    `This will permanently delete "${name}" — including ${memberCount} member(s) and ${sessionCount} game(s) recorded there. This cannot be undone.`,
+    `Delete "${name}" completely? This removes ${memberCount} member(s) and ${sessionCount} game(s). Can't be undone.`,
     "DELETE"
   );
   if(!ok){ toast("Cancelled."); return; }
   try{
     await ownerApi(`/api/owner/flights/${encodeURIComponent(name)}`, { method:"DELETE" });
-    toast(`${name} removed.`);
+    toast(`${name} deleted.`);
     render();
   }catch(err){ toast(err.message); }
 }
@@ -877,6 +905,10 @@ async function render(){
   }
   if(STATE.page === "ownerFlightLogs"){
     await renderOwnerFlightLogs();
+    return;
+  }
+  if(STATE.page === "ownerLogs"){
+    await renderOwnerLogsAll();
     return;
   }
 
