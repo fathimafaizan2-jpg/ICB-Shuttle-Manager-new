@@ -270,6 +270,18 @@ app.get("/api/owner/flights", ownerMiddleware, async (req, res) => {
   res.json(list);
 });
 
+// All flights' activity in one list, newest first — for spotting conflicts fast.
+app.get("/api/owner/logs", ownerMiddleware, async (req, res) => {
+  const names = await getFlightNames();
+  let combined = [];
+  for(const name of names){
+    const { data } = await getOrCreateFlight(name);
+    (data.auditLog || []).forEach(e => combined.push({ ...e, flight: name }));
+  }
+  combined.sort((a,b) => b.ts.localeCompare(a.ts));
+  res.json(combined.slice(0, 300));
+});
+
 app.get("/api/owner/flights/:name/logs", ownerMiddleware, async (req, res) => {
   const name = req.params.name;
   const names = await getFlightNames();
@@ -358,6 +370,8 @@ app.patch("/api/owner/flights/:name/rename", ownerMiddleware, async (req, res) =
   res.json({ success: true });
 });
 
+// Removes the admin entirely — one action, no partial state. If it's the
+// flight's only admin, the flight simply goes back to unclaimed.
 app.post("/api/owner/flights/:name/revoke", ownerMiddleware, async (req, res) => {
   const name = req.params.name;
   const names = await getFlightNames();
@@ -368,18 +382,12 @@ app.post("/api/owner/flights/:name/revoke", ownerMiddleware, async (req, res) =>
   const a = findAdmin(data, adminName);
   if(!a) return res.status(404).json({ message: "No admin with that name on this flight." });
 
-  a.pinHash = null;
-  a.recoveryCodeHash = null;
-  a.mustChangePin = false;
-  a.tokenVersion = (a.tokenVersion || 0) + 1;
-  a.failedAttempts = 0; a.lockUntil = null;
-  logEvent(data, "Super Admin", `Revoked access for admin: ${a.name}`);
+  data.admins = data.admins.filter(x => x.id !== a.id);
+  logEvent(data, "Super Admin", `Removed admin: ${a.name}`);
   await ref.set(data);
   res.json({ success: true });
 });
 
-// Super Admin can wipe a flight's data without needing to log in as its admin.
-// Admins and their PINs are kept — only members/games/payments/stock are cleared.
 app.post("/api/owner/flights/:name/erase-data", ownerMiddleware, async (req, res) => {
   const name = req.params.name;
   const names = await getFlightNames();
