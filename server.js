@@ -256,7 +256,7 @@ app.get("/api/owner/flights", ownerMiddleware, async (req, res) => {
     const lastActiveAt = admins.reduce((max,a) => (a.lastActiveAt && (!max || a.lastActiveAt > max)) ? a.lastActiveAt : max, null);
     list.push({
       name,
-      claimed: admins.some(a => a.pinHash && !a.mustChangePin),,
+      claimed: admins.some(a => a.pinHash && !a.mustChangePin),
       adminNames: admins.map(a => a.name),
       memberCount: data.members.length,
       sessionCount: data.sessions.length,
