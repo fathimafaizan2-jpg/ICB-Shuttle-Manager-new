@@ -29,14 +29,12 @@ const db = admin.firestore();
 const flights = db.collection("flights");
 const metaFlightsRef = db.collection("meta").doc("flights");
 
-// A function, not a shared object — every call returns a brand-new set of
-// arrays/objects, so no two flights can ever accidentally reference the same one.
 function defaultFlight(){
   return {
-    admins: [], // {id, name, pinHash, mustChangePin, recoveryCodeHash, tokenVersion, failedAttempts, lockUntil, lastActiveAt}
+    admins: [],
     tubePriceFils: 14500, shuttlesPerTube: 12, shuttlesInStock: 0,
     members: [], sessions: [], paid: {},
-    auditLog: [] // {ts, actor, action}
+    auditLog: []
   };
 }
 
@@ -147,6 +145,7 @@ function publicFlight(name, data, currentAdminId){
 app.get("/api/ping", (req, res) => res.json({ ok: true }));
 app.get("/api/flights", async (req, res) => res.json(await getFlightNames()));
 
+// Player self-link — full personal summary, not just unpaid games.
 app.get("/api/public/:token", async (req, res) => {
   const snapshot = await flights.get();
   for(const doc of snapshot.docs){
@@ -154,23 +153,20 @@ app.get("/api/public/:token", async (req, res) => {
     const m = (data.members || []).find(x => x.publicToken === req.params.token);
     if(m){
       const owed = outstandingFils(data, m.id);
-      const unpaid = data.sessions.filter(s => {
+      const history = data.sessions.slice().sort((a,b) => b.date.localeCompare(a.date)).map(s => {
+        const played = s.presentIds.includes(m.id);
         const share = s.shares[m.id];
-        if(!share) return false;
-        return paidAmountFor(data, `${s.id}_${m.id}`, share) < share;
-      }).map(s => {
-        const share = s.shares[m.id];
-        const paid = paidAmountFor(data, `${s.id}_${m.id}`, share);
-        return { date: s.date, dueFils: share - paid };
+        const paid = share ? paidAmountFor(data, `${s.id}_${m.id}`, share) : 0;
+        return { date: s.date, played, dueFils: share ? Math.max(0, share - paid) : 0 };
       });
-      return res.json({ flightName: doc.id, memberName: m.name, outstandingFils: owed, unpaidGames: unpaid });
+      return res.json({ flightName: doc.id, memberName: m.name, outstandingFils: owed, history });
     }
   }
   res.status(404).json({ message: "Link not found or expired." });
 });
 
 /* ===================================================================
-   LOGIN + RECOVERY (per-admin, name + PIN both required, always)
+   LOGIN + RECOVERY
    =================================================================== */
 function isLocked(entity){
   return entity.lockUntil && new Date(entity.lockUntil).getTime() > Date.now();
@@ -270,16 +266,44 @@ app.get("/api/owner/flights", ownerMiddleware, async (req, res) => {
   res.json(list);
 });
 
-// All flights' activity in one list, newest first — for spotting conflicts fast.
+// Categorized, all-flights logs for Super Admin: attendance, shuttle usage,
+// payments, and a live arrears snapshot.
 app.get("/api/owner/logs", ownerMiddleware, async (req, res) => {
   const names = await getFlightNames();
-  let combined = [];
+  const attendance = [];
+  const shuttle = [];
+  const payments = [];
+  const arrears = [];
+
   for(const name of names){
     const { data } = await getOrCreateFlight(name);
-    (data.auditLog || []).forEach(e => combined.push({ ...e, flight: name }));
+    const activeNames = data.members.filter(m => m.active !== false).map(m => m.name);
+
+    data.sessions.forEach(s => {
+      const presentNames = s.presentIds.map(id => memberNameById(data.members, id));
+      const absentNames = activeNames.filter(n => !presentNames.includes(n));
+      attendance.push({ flight: name, date: s.date, present: presentNames, absent: absentNames });
+      shuttle.push({ flight: name, date: s.date, shuttlesUsed: s.shuttlesUsed, costFils: s.totalCostFils });
+    });
+
+    (data.auditLog || []).forEach(e => {
+      if(e.action.startsWith("Recorded payment") || e.action.startsWith("Settled all outstanding") || e.action.startsWith("Undid a payment")){
+        payments.push({ ts: e.ts, flight: name, actor: e.actor, action: e.action });
+      }
+    });
+
+    data.members.forEach(m => {
+      const owed = outstandingFils(data, m.id);
+      if(owed > 0) arrears.push({ flight: name, member: m.name, amountFils: owed });
+    });
   }
-  combined.sort((a,b) => b.ts.localeCompare(a.ts));
-  res.json(combined.slice(0, 300));
+
+  attendance.sort((a,b) => b.date.localeCompare(a.date));
+  shuttle.sort((a,b) => b.date.localeCompare(a.date));
+  payments.sort((a,b) => b.ts.localeCompare(a.ts));
+  arrears.sort((a,b) => b.amountFils - a.amountFils);
+
+  res.json({ attendance, shuttle, payments, arrears });
 });
 
 app.get("/api/owner/flights/:name/logs", ownerMiddleware, async (req, res) => {
@@ -322,7 +346,6 @@ app.post("/api/owner/flights", ownerMiddleware, async (req, res) => {
   res.json({ success: true });
 });
 
-// Add a brand-new admin, or reissue a PIN for an existing one by name.
 app.post("/api/owner/flights/:name/assign", ownerMiddleware, async (req, res) => {
   const name = req.params.name;
   const names = await getFlightNames();
@@ -370,8 +393,6 @@ app.patch("/api/owner/flights/:name/rename", ownerMiddleware, async (req, res) =
   res.json({ success: true });
 });
 
-// Removes the admin entirely — one action, no partial state. If it's the
-// flight's only admin, the flight simply goes back to unclaimed.
 app.post("/api/owner/flights/:name/revoke", ownerMiddleware, async (req, res) => {
   const name = req.params.name;
   const names = await getFlightNames();
@@ -515,7 +536,6 @@ app.post("/api/flight/recovery-code", async (req, res) => {
   res.json({ success: true });
 });
 
-/* --- Admins (self-service, any signed-in admin) --- */
 app.post("/api/flight/admins", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data, admin: adm } = ctx;
@@ -700,6 +720,22 @@ app.post("/api/payments/:memberId/settle-all", async (req, res) => {
   data.sessions.forEach(s => { if(s.shares[req.params.memberId]) data.paid[`${s.id}_${req.params.memberId}`] = s.shares[req.params.memberId]; });
   const memberName = memberNameById(data.members, req.params.memberId);
   logEvent(data, adm.name, `Settled all outstanding for ${memberName}`);
+  await ref.set(data);
+  res.json(publicFlight(req.flightName, data, adm.id));
+});
+
+// Reverses a settle-all (or any set of payment changes) by restoring exact
+// prior amounts — used by the Undo bar right after settling.
+app.post("/api/payments/restore", async (req, res) => {
+  const ctx = await loadFlightChecked(req, res); if(!ctx) return;
+  const { ref, data, admin: adm } = ctx;
+  const { entries } = req.body;
+  if(!Array.isArray(entries)) return res.status(400).json({ message: "Invalid request." });
+  entries.forEach(({ sessionId, memberId, amount }) => {
+    const key = `${sessionId}_${memberId}`;
+    if(amount > 0) data.paid[key] = amount; else delete data.paid[key];
+  });
+  logEvent(data, adm.name, "Undid a payment settlement");
   await ref.set(data);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
