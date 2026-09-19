@@ -206,10 +206,14 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 .gate{max-width:400px;margin:70px auto;text-align:center;}
 .gate .pin-input{font-size:26px;letter-spacing:12px;text-align:center;width:100%;margin:16px 0;font-weight:700;}
 
-.flight-card{border:1.5px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;background:#fff;}
+.flight-row{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;border-bottom:1px solid var(--line);cursor:pointer;}
+.flight-row:last-child{border-bottom:none;}
+.flight-row:hover{background:#f6f8fb;}
+.flight-row-name{font-weight:700;color:var(--navy);font-family:'Poppins',sans-serif;}
 .flight-card-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
 .flight-card-name{font-weight:800;font-size:16px;font-family:'Poppins',sans-serif;color:var(--navy);}
 .flight-card-line{font-size:12px;color:var(--muted);margin:3px 0;}
+.menu-bar{display:flex;flex-wrap:wrap;gap:8px;}
 
 footer{text-align:center;padding:18px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);background:#fff;}
 footer strong{color:var(--navy);}
@@ -413,8 +417,6 @@ function confirmScoped(message, word){
   return typed === word;
 }
 
-/* Shared table renderer — used by the flight's own Logs tab AND
-   Super Admin's per-flight log view. */
 function renderLogsHtml(sessions, auditLog, members){
   const gameSorted = sessions.slice().sort((a,b) => b.date.localeCompare(a.date));
   const activeNames = members.filter(m => m.active !== false).map(m => m.name);
@@ -439,7 +441,7 @@ function renderLogsHtml(sessions, auditLog, members){
   return `
   <div class="card">
     <h2>Game log</h2>
-    <p class="sub">One row per saved game. Stock shown elsewhere is current-only — this doesn't reconstruct historical stock levels.</p>
+    <p class="sub">One row per saved game. Stock shown elsewhere is current-only.</p>
     <div style="overflow-x:auto"><table>
       <tr><th>Date</th><th class="num">Shuttles</th><th>Present</th><th>Absent</th><th class="num">Cost</th></tr>
       ${gameRows || `<tr><td colspan="5" class="muted">No games recorded yet.</td></tr>`}
@@ -478,7 +480,7 @@ function showUndoBar(message, onUndo){
 let FLIGHT_NAMES = [];
 async function refreshFlightNames(){
   try{ FLIGHT_NAMES = await unwrapFetch("/api/flights"); }
-  catch{ /* keep whatever we had */ }
+  catch{ }
 }
 
 function pageLogin(){
@@ -587,7 +589,7 @@ async function confirmFirstPinChange(){
 }
 
 /* ===================================================================
-   SUPER ADMIN — Firebase email/password. Flight list + logs only.
+   SUPER ADMIN
    =================================================================== */
 function pageOwnerLogin(){
   return `
@@ -631,7 +633,7 @@ const OWNER_TABS = [["ownerDashboard","Flights"],["ownerLogs","Logs"]];
 
 function ownerNavHtml(){
   return OWNER_TABS.map(([id,label]) =>
-    `<button data-tab="${id}" class="${STATE.page===id?"active":""}" onclick="STATE.page='${id}';render()">${label}</button>`).join("");
+    `<button data-tab="${id}" class="${STATE.page===id||(id==='ownerDashboard'&&STATE.page==='ownerFlightDetail')?"active":""}" onclick="STATE.page='${id}';render()">${label}</button>`).join("");
 }
 
 async function renderOwnerDashboard(){
@@ -649,29 +651,17 @@ async function renderOwnerDashboard(){
     return;
   }
 
-  const cards = OWNER_FLIGHTS.map(f => `
-    <div class="flight-card">
-      <div class="flight-card-top">
-        <span class="flight-card-name">${escapeHtml(f.name)}</span>
-        ${f.claimed ? '<span class="badge b-paid">Claimed</span>' : '<span class="badge b-warn">Not claimed</span>'}
-      </div>
-      <p class="flight-card-line">Admin: ${f.adminNames.length ? escapeHtml(f.adminNames.join(", ")) : "—"} · Active: ${timeAgo(f.lastActiveAt)}</p>
-      <p class="flight-card-line">Members: ${f.memberCount} · Games: ${f.sessionCount}</p>
-      <select onchange="handleOwnerRowAction(this,'${encodeURIComponent(f.name)}')" style="width:100%;margin-top:8px">
-        <option value="">Choose action</option>
-        <option value="assign">Add admin</option>
-        <option value="rename">Rename</option>
-        <option value="revoke">Remove admin</option>
-        <option value="erase">Erase data</option>
-        <option value="logs">Flight logs</option>
-        <option value="remove">Delete flight</option>
-      </select>
+  const rows = OWNER_FLIGHTS.map(f => `
+    <div class="flight-row" onclick="openFlightDetail('${encodeURIComponent(f.name)}')">
+      <span class="flight-row-name">${escapeHtml(f.name)}</span>
+      ${f.claimed ? '<span class="badge b-paid">Claimed</span>' : '<span class="badge b-warn">Not claimed</span>'}
     </div>`).join("");
 
   document.getElementById("content").innerHTML = `
     <div class="card">
       <h2 class="tab-setup">All flights (${OWNER_FLIGHTS.length})</h2>
-      ${cards || `<p class="muted">No flights yet.</p>`}
+      <p class="sub">Tap a flight to manage it.</p>
+      ${rows || `<p class="muted">No flights yet.</p>`}
     </div>
     <div class="card">
       <h2 class="tab-setup">Add a flight</h2>
@@ -685,19 +675,6 @@ async function renderOwnerDashboard(){
     </div>`;
 }
 
-function handleOwnerRowAction(selectEl, encodedName){
-  const action = selectEl.value;
-  selectEl.value = "";
-  const name = decodeURIComponent(encodedName);
-  const f = OWNER_FLIGHTS.find(x => x.name === name);
-  if(action === "assign") return assignFlightAdmin(encodedName);
-  if(action === "rename") return renameFlight(encodedName);
-  if(action === "revoke") return revokeFlightAccess(encodedName, f);
-  if(action === "erase") return eraseFlightData(encodedName);
-  if(action === "logs") return viewFlightLogs(encodedName);
-  if(action === "remove") return removeFlight(encodedName, f.memberCount, f.sessionCount);
-}
-
 async function addFlight(){
   const name = document.getElementById("newFlightName").value.trim();
   const adminName = document.getElementById("newFlightAdmin").value.trim();
@@ -709,6 +686,50 @@ async function addFlight(){
     toast(`${name} added.`);
     render();
   }catch(err){ toast(err.message); }
+}
+
+let OWNER_DETAIL_FLIGHT = null;
+
+function openFlightDetail(encodedName){
+  OWNER_DETAIL_FLIGHT = decodeURIComponent(encodedName);
+  STATE.page = "ownerFlightDetail";
+  render();
+}
+
+async function renderOwnerFlightDetail(){
+  document.getElementById("hdrTitle").textContent = OWNER_DETAIL_FLIGHT;
+  document.getElementById("hdrSub").textContent = "";
+  document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="ownerSignOut()">🔒 Sign out</button>`;
+  document.getElementById("navBar").innerHTML = ownerNavHtml();
+
+  try{ OWNER_FLIGHTS = await ownerApi("/api/owner/flights"); }
+  catch(err){ toast(err.message); STATE.page = "ownerDashboard"; render(); return; }
+
+  const f = OWNER_FLIGHTS.find(x => x.name === OWNER_DETAIL_FLIGHT);
+  if(!f){ toast("Flight not found."); STATE.page = "ownerDashboard"; render(); return; }
+
+  document.getElementById("content").innerHTML = `
+    <div class="card">
+      <div class="flight-card-top">
+        <span class="flight-card-name">${escapeHtml(f.name)}</span>
+        ${f.claimed ? '<span class="badge b-paid">Claimed</span>' : '<span class="badge b-warn">Not claimed</span>'}
+      </div>
+      <p class="flight-card-line">Admin: ${f.adminNames.length ? escapeHtml(f.adminNames.join(", ")) : "—"} · Active: ${timeAgo(f.lastActiveAt)}</p>
+      <p class="flight-card-line">Members: ${f.memberCount} · Games: ${f.sessionCount}</p>
+    </div>
+    <div class="card">
+      <div class="menu-bar">
+        <button onclick="assignFlightAdmin('${encodeURIComponent(f.name)}')">Add admin</button>
+        <button onclick="renameFlight('${encodeURIComponent(f.name)}')">Rename</button>
+        <button onclick="revokeFlightAccess('${encodeURIComponent(f.name)}')">Remove admin</button>
+        <button class="danger" onclick="eraseFlightData('${encodeURIComponent(f.name)}')">Erase data</button>
+        <button onclick="viewFlightLogs('${encodeURIComponent(f.name)}')">Flight logs</button>
+        <button class="danger" onclick="removeFlight('${encodeURIComponent(f.name)}')">Delete flight</button>
+      </div>
+    </div>
+    <div class="card no-print">
+      <button class="ghost" onclick="STATE.page='ownerDashboard';render()">⬅ Back to all flights</button>
+    </div>`;
 }
 
 async function assignFlightAdmin(encodedName){
@@ -731,14 +752,14 @@ async function renameFlight(encodedOldName){
   try{
     await ownerApi(`/api/owner/flights/${encodeURIComponent(oldName)}/rename`, { method:"PATCH", body: JSON.stringify({ newName: newName.trim() }) });
     toast("Renamed.");
+    if(STATE.page === "ownerFlightDetail") OWNER_DETAIL_FLIGHT = newName.trim();
     render();
   }catch(err){ toast(err.message); }
 }
 
-// One prompt: type the admin's exact name to remove them. If there's only
-// one admin, their name is pre-filled — just press OK to confirm.
-async function revokeFlightAccess(encodedName, f){
+async function revokeFlightAccess(encodedName){
   const name = decodeURIComponent(encodedName);
+  const f = OWNER_FLIGHTS.find(x => x.name === name);
   if(!f || !f.adminNames.length){ toast(`${name} has no admin yet.`); return; }
   const suggestion = f.adminNames.length === 1 ? f.adminNames[0] : "";
   const label = f.adminNames.length > 1
@@ -771,11 +792,11 @@ let OWNER_LOG_FLIGHT = null;
 
 function viewFlightLogs(encodedName){
   OWNER_LOG_FLIGHT = decodeURIComponent(encodedName);
-  STATE.page = "ownerFlightLogs";
+  STATE.page = "ownerFlightLogsSingle";
   render();
 }
 
-async function renderOwnerFlightLogs(){
+async function renderOwnerFlightLogsSingle(){
   document.getElementById("hdrTitle").textContent = OWNER_LOG_FLIGHT;
   document.getElementById("hdrSub").textContent = "";
   document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="ownerSignOut()">🔒 Sign out</button>`;
@@ -790,43 +811,16 @@ async function renderOwnerFlightLogs(){
     render();
     return;
   }
-  document.getElementById("content").innerHTML = renderLogsHtml(logData.sessions, logData.auditLog, logData.members);
+  document.getElementById("content").innerHTML =
+    `<div class="card no-print"><button class="ghost" onclick="openFlightDetail('${encodeURIComponent(OWNER_LOG_FLIGHT)}')">⬅ Back to ${escapeHtml(OWNER_LOG_FLIGHT)}</button></div>` +
+    renderLogsHtml(logData.sessions, logData.auditLog, logData.members);
 }
 
-async function renderOwnerLogsAll(){
-  document.getElementById("hdrTitle").textContent = "Logs";
-  document.getElementById("hdrSub").textContent = "Every flight's activity, newest first.";
-  document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="ownerSignOut()">🔒 Sign out</button>`;
-  document.getElementById("navBar").innerHTML = ownerNavHtml();
-
-  let entries;
-  try{
-    entries = await ownerApi("/api/owner/logs");
-  }catch(err){
-    toast(err.message);
-    STATE.page = "ownerDashboard";
-    render();
-    return;
-  }
-
-  const rows = entries.map(e => `<tr>
-    <td style="white-space:nowrap;font-size:12px">${new Date(e.ts).toLocaleString()}</td>
-    <td><strong>${escapeHtml(e.flight)}</strong></td>
-    <td>${escapeHtml(e.actor)}</td>
-    <td>${escapeHtml(e.action)}</td>
-  </tr>`).join("");
-
-  document.getElementById("content").innerHTML = `
-    <div class="card">
-      <div style="overflow-x:auto"><table>
-        <tr><th>Time</th><th>Flight</th><th>By</th><th>What</th></tr>
-        ${rows || `<tr><td colspan="4" class="muted">No activity yet.</td></tr>`}
-      </table></div>
-    </div>`;
-}
-
-async function removeFlight(encodedName, memberCount, sessionCount){
+async function removeFlight(encodedName){
   const name = decodeURIComponent(encodedName);
+  const f = OWNER_FLIGHTS.find(x => x.name === name);
+  const memberCount = f ? f.memberCount : 0;
+  const sessionCount = f ? f.sessionCount : 0;
   const ok = confirmScoped(
     `Delete "${name}" completely? This removes ${memberCount} member(s) and ${sessionCount} game(s). Can't be undone.`,
     "DELETE"
@@ -835,12 +829,90 @@ async function removeFlight(encodedName, memberCount, sessionCount){
   try{
     await ownerApi(`/api/owner/flights/${encodeURIComponent(name)}`, { method:"DELETE" });
     toast(`${name} deleted.`);
+    STATE.page = "ownerDashboard";
     render();
   }catch(err){ toast(err.message); }
 }
 
 /* ===================================================================
-   PUBLIC PLAYER VIEW (?p=token — no login)
+   SUPER ADMIN — Categorized all-flights logs
+   =================================================================== */
+let OWNER_LOG_CATEGORY = "attendance";
+let OWNER_LOG_DATA = null;
+
+async function renderOwnerLogsAll(){
+  document.getElementById("hdrTitle").textContent = "Logs";
+  document.getElementById("hdrSub").textContent = "Every flight's activity.";
+  document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="ownerSignOut()">🔒 Sign out</button>`;
+  document.getElementById("navBar").innerHTML = ownerNavHtml();
+
+  try{
+    OWNER_LOG_DATA = await ownerApi("/api/owner/logs");
+  }catch(err){
+    toast(err.message);
+    STATE.page = "ownerDashboard";
+    render();
+    return;
+  }
+
+  document.getElementById("content").innerHTML = renderOwnerLogsCategory();
+}
+
+function setOwnerLogCategory(cat){
+  OWNER_LOG_CATEGORY = cat;
+  document.getElementById("content").innerHTML = renderOwnerLogsCategory();
+}
+
+function renderOwnerLogsCategory(){
+  const cats = [
+    ["attendance","Attendance logs"],
+    ["shuttle","Shuttle logs"],
+    ["payments","Payment logs"],
+    ["arrears","Arrears logs"]
+  ];
+  const nav = cats.map(([id,label]) =>
+    `<button class="${OWNER_LOG_CATEGORY===id?'primary':''}" onclick="setOwnerLogCategory('${id}')">${label}</button>`).join("");
+
+  let body = "";
+  const d = OWNER_LOG_DATA;
+
+  if(OWNER_LOG_CATEGORY === "attendance"){
+    const rows = d.attendance.map(e => `<tr>
+      <td>${shortDate(e.date)}</td><td><strong>${escapeHtml(e.flight)}</strong></td>
+      <td>${e.present.map(n=>escapeHtml(n)).join(", ") || "—"}</td>
+      <td>${e.absent.map(n=>escapeHtml(n)).join(", ") || "—"}</td>
+    </tr>`).join("");
+    body = `<table><tr><th>Date</th><th>Flight</th><th>Present</th><th>Absent</th></tr>
+      ${rows || `<tr><td colspan="4" class="muted">No games yet.</td></tr>`}</table>`;
+  } else if(OWNER_LOG_CATEGORY === "shuttle"){
+    const rows = d.shuttle.map(e => `<tr>
+      <td>${shortDate(e.date)}</td><td><strong>${escapeHtml(e.flight)}</strong></td>
+      <td class="num">${e.shuttlesUsed}</td><td class="num">BHD ${bhd(e.costFils)}</td>
+    </tr>`).join("");
+    body = `<table><tr><th>Date</th><th>Flight</th><th class="num">Shuttles</th><th class="num">Cost</th></tr>
+      ${rows || `<tr><td colspan="4" class="muted">No games yet.</td></tr>`}</table>`;
+  } else if(OWNER_LOG_CATEGORY === "payments"){
+    const rows = d.payments.map(e => `<tr>
+      <td style="white-space:nowrap;font-size:12px">${new Date(e.ts).toLocaleString()}</td>
+      <td><strong>${escapeHtml(e.flight)}</strong></td><td>${escapeHtml(e.actor)}</td><td>${escapeHtml(e.action)}</td>
+    </tr>`).join("");
+    body = `<table><tr><th>Time</th><th>Flight</th><th>By</th><th>What</th></tr>
+      ${rows || `<tr><td colspan="4" class="muted">No payments recorded yet.</td></tr>`}</table>`;
+  } else if(OWNER_LOG_CATEGORY === "arrears"){
+    const rows = d.arrears.map(e => `<tr>
+      <td><strong>${escapeHtml(e.flight)}</strong></td><td>${escapeHtml(e.member)}</td>
+      <td class="num" style="color:var(--coral-deep);font-weight:700">BHD ${bhd(e.amountFils)}</td>
+    </tr>`).join("");
+    body = `<table><tr><th>Flight</th><th>Member</th><th class="num">Owes</th></tr>
+      ${rows || `<tr><td colspan="3" class="muted">Nobody owes anything right now.</td></tr>`}</table>`;
+  }
+
+  return `<div class="card"><div class="row" style="margin-bottom:14px">${nav}</div>
+    <div style="overflow-x:auto">${body}</div></div>`;
+}
+
+/* ===================================================================
+   PUBLIC PLAYER VIEW (?p=token — no login, checked BEFORE any token)
    =================================================================== */
 async function renderPublicView(token){
   document.getElementById("navBar").innerHTML = "";
@@ -850,14 +922,18 @@ async function renderPublicView(token){
     const data = await res.json();
     if(!res.ok) throw new Error(data.message);
     document.getElementById("hdrTitle").textContent = data.flightName;
-    document.getElementById("hdrSub").textContent = `Balance for ${data.memberName}`;
-    const rows = data.unpaidGames.map(g => `<tr><td>${shortDate(g.date)}</td><td class="num">BHD ${bhd(g.dueFils)}</td></tr>`).join("");
+    document.getElementById("hdrSub").textContent = `Summary for ${data.memberName}`;
+    const rows = data.history.map(h => `<tr>
+      <td>${shortDate(h.date)}</td>
+      <td class="num" style="color:${h.played?'var(--court-deep)':'var(--coral-deep)'};font-weight:700">${h.played ? "Played" : "Absent"}</td>
+      <td class="num">${h.dueFils ? `BHD ${bhd(h.dueFils)}` : "—"}</td>
+    </tr>`).join("");
     document.getElementById("content").innerHTML = `
-      <div class="card" style="max-width:420px;margin:40px auto;text-align:center">
+      <div class="card" style="max-width:480px;margin:40px auto;text-align:center">
         <h2>${escapeHtml(data.memberName)}</h2>
         <p style="font-size:30px;font-weight:800;font-family:'Poppins',sans-serif;color:${data.outstandingFils?"var(--coral)":"var(--court)"}">BHD ${bhd(data.outstandingFils)}</p>
-        <p class="muted">${data.outstandingFils ? "outstanding" : "all settled — nothing owed"}</p>
-        ${rows ? `<table style="margin-top:16px"><tr><th>Date</th><th class="num">Amount</th></tr>${rows}</table>` : ""}
+        <p class="muted">${data.outstandingFils ? "total outstanding" : "all settled — nothing owed"}</p>
+        ${rows ? `<table style="margin-top:16px;text-align:left"><tr><th>Date</th><th class="num">Status</th><th class="num">Due</th></tr>${rows}</table>` : `<p class="muted" style="margin-top:16px">No games recorded yet.</p>`}
       </div>`;
   }catch(err){
     document.getElementById("content").innerHTML = `<div class="card" style="max-width:420px;margin:40px auto;text-align:center"><p class="muted">${escapeHtml(err.message)}</p></div>`;
@@ -899,18 +975,10 @@ async function render(){
     document.getElementById("content").innerHTML = pageOwnerLogin();
     return;
   }
-  if(STATE.page === "ownerDashboard"){
-    await renderOwnerDashboard();
-    return;
-  }
-  if(STATE.page === "ownerFlightLogs"){
-    await renderOwnerFlightLogs();
-    return;
-  }
-  if(STATE.page === "ownerLogs"){
-    await renderOwnerLogsAll();
-    return;
-  }
+  if(STATE.page === "ownerDashboard"){ await renderOwnerDashboard(); return; }
+  if(STATE.page === "ownerFlightDetail"){ await renderOwnerFlightDetail(); return; }
+  if(STATE.page === "ownerFlightLogsSingle"){ await renderOwnerFlightLogsSingle(); return; }
+  if(STATE.page === "ownerLogs"){ await renderOwnerLogsAll(); return; }
 
   if(!getToken() || !STATE.fl){
     await refreshFlightNames();
@@ -935,7 +1003,7 @@ async function render(){
 }
 
 /* ===================================================================
-   TAB — LOGS
+   TAB — LOGS (flight's own)
    =================================================================== */
 function pageLogs(fl){
   return renderLogsHtml(fl.sessions, fl.auditLog, fl.members);
@@ -1426,7 +1494,7 @@ function pagePayments(fl){
 
   return `
   <div class="card"><h2 class="tab-payments">Who still owes</h2>
-    <p class="sub">Type the amount a player paid you and click "Add payment" — enter the full amount to clear a game, or less for a partial payment. "Settle all" clears everything for that player at once.</p>
+    <p class="sub">Type the amount a player paid you and click "Add payment" — enter the full amount to clear a game, or less for a partial payment. "Settle all" clears everything for that player at once, and can be undone for a few seconds right after.</p>
     <div class="summary" style="margin-bottom:16px">
       <div><span>Total outstanding</span><strong style="color:var(--coral-deep)">BHD ${bhd(totalOwed)}</strong></div>
       <div><span>Players owing</span><strong>${withCharges.filter(m => outstandingFils(fl,m.id)>0).length}</strong></div>
@@ -1449,11 +1517,27 @@ async function addPayment(sessionId, memberId){
   }catch(err){ toast(err.message); }
 }
 
+// Captures every prior payment amount before settling, so a mistaken
+// "Settle all" can be reversed exactly within the undo window.
 async function settleAll(memberId){
   const m = STATE.fl.members.find(x => x.id===memberId);
   if(!confirm(`Mark everything as received from ${m.name}?`)) return;
-  try{ STATE.fl = await api(`/api/payments/${memberId}/settle-all`, { method:"POST" }); render(); toast(`${m.name} settled.`); }
-  catch(err){ toast(err.message); }
+
+  const priorEntries = STATE.fl.sessions
+    .filter(s => s.shares[memberId])
+    .map(s => ({ sessionId: s.id, memberId, amount: paidAmountFor(STATE.fl, `${s.id}_${memberId}`, s.shares[memberId]) }));
+
+  try{
+    STATE.fl = await api(`/api/payments/${memberId}/settle-all`, { method:"POST" });
+    render();
+    showUndoBar(`${m.name} settled.`, async () => {
+      try{
+        STATE.fl = await api("/api/payments/restore", { method:"POST", body: JSON.stringify({ entries: priorEntries }) });
+        render();
+        toast("Undone.");
+      }catch(err){ toast(err.message); }
+    });
+  }catch(err){ toast(err.message); }
 }
 
 function startReminderQueue(){
@@ -1553,6 +1637,10 @@ function setAnchor(v){ ANCHOR = v; render(); }
 
 /* =============================== BOOT =============================== */
 (async function boot(){
+  const params = new URLSearchParams(location.search);
+  const publicToken = params.get("p");
+  if(publicToken){ await renderPublicView(publicToken); return; }
+
   if(getToken()){
     try{
       await refreshFlight();
