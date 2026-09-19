@@ -1531,4 +1531,144 @@ function pagePayments(fl){
 
     return `<div class="card" style="margin-bottom:12px">
       <div class="row" style="justify-content:space-between;margin-bottom:${unpaid.length?"6px":"0"}">
-        <h2 style="margin:0;font-size:15px
+        <h2 style="margin:0;font-size:15px">${escapeHtml(m.name)}</h2>
+        <div class="row">
+          <strong style="color:${owed?"var(--coral-deep)":"var(--court-deep)"};font-size:16px;font-family:'Poppins',sans-serif">BHD ${bhd(owed)}</strong>
+          ${owed ? `<button class="primary" onclick="settleAll('${m.id}')">Settle all</button>` : `<span class="badge b-paid">All settled</span>`}
+        </div>
+      </div>
+      ${gameLines}
+    </div>`;
+  }).join("");
+
+  return `
+  <div class="card"><h2 class="tab-payments">Who still owes</h2>
+    <p class="sub">Type the amount a player paid you and click "Add payment" — enter the full amount to clear a game, or less for a partial payment. Both "Add payment" and "Settle all" can be undone for a few seconds right after.</p>
+    <div class="summary" style="margin-bottom:16px">
+      <div><span>Total outstanding</span><strong style="color:var(--coral-deep)">BHD ${bhd(totalOwed)}</strong></div>
+      <div><span>Players owing</span><strong>${withCharges.filter(m => outstandingFils(fl,m.id)>0).length}</strong></div>
+      <div><span>Games recorded</span><strong>${fl.sessions.length}</strong></div>
+    </div>
+  </div>
+  ${rows}`;
+}
+
+async function addPayment(sessionId, memberId){
+  const key = `${sessionId}_${memberId}`;
+  const input = document.getElementById(`pay_${key}`);
+  const amountFils = Math.round(Number(input.value) * 1000);
+  if(!amountFils || amountFils <= 0){ toast("Enter an amount in BHD."); return; }
+
+  const priorAmount = paidAmountFor(STATE.fl, key, STATE.fl.sessions.find(s => s.id === sessionId)?.shares[memberId] || 0);
+
+  try{
+    STATE.fl = await api(`/api/payments/${sessionId}/${memberId}/pay-partial`, { method:"POST", body: JSON.stringify({ amountFils }) });
+    render();
+    showUndoBar("Payment recorded.", async () => {
+      try{
+        STATE.fl = await api("/api/payments/restore", { method:"POST", body: JSON.stringify({ entries: [{ sessionId, memberId, amount: priorAmount }] }) });
+        render();
+        toast("Undone.");
+      }catch(err){ toast(err.message); }
+    });
+  }catch(err){ toast(err.message); }
+}
+
+async function settleAll(memberId){
+  const m = STATE.fl.members.find(x => x.id===memberId);
+  if(!confirm(`Mark everything as received from ${m.name}?`)) return;
+
+  const priorEntries = STATE.fl.sessions
+    .filter(s => s.shares[memberId])
+    .map(s => ({ sessionId: s.id, memberId, amount: paidAmountFor(STATE.fl, `${s.id}_${memberId}`, s.shares[memberId]) }));
+
+  try{
+    STATE.fl = await api(`/api/payments/${memberId}/settle-all`, { method:"POST" });
+    render();
+    showUndoBar(`${m.name} settled.`, async () => {
+      try{
+        STATE.fl = await api("/api/payments/restore", { method:"POST", body: JSON.stringify({ entries: priorEntries }) });
+        render();
+        toast("Undone.");
+      }catch(err){ toast(err.message); }
+    });
+  }catch(err){ toast(err.message); }
+}
+
+/* ===================================================================
+   TAB — REPORT (P/A marks)
+   =================================================================== */
+let PERIOD = "month";
+let ANCHOR = todayISO();
+const PERIOD_LABEL = { day:"Day", week:"Week", month:"Month", all:"All time" };
+
+function pageReport(fl){
+  const sessions = sessionsInPeriod(fl, PERIOD, ANCHOR);
+  const members = fl.members.filter(m => m.active || fl.sessions.some(s => s.shares[m.id]));
+  const header = sessions.map(s => `<th colspan="2">${shortDate(s.date)}</th>`).join("");
+  const metric = (label, fn) => `<tr class="metric"><td></td><td>${label}</td>
+    ${sessions.map(s => `<td></td><td class="num">${fn(s)}</td>`).join("")}</tr>`;
+
+  const body = members.map((m,i) => {
+    const cells = sessions.map(s => s.shares[m.id]
+      ? `<td class="pmark">P</td><td class="shr">${bhd(s.shares[m.id])}</td>`
+      : `<td class="amark">A</td><td class="shr"></td>`).join("");
+    const owed = outstandingFils(fl, m.id);
+    return `<tr><td class="num">${i+1}</td><td>${escapeHtml(m.name)}</td>${cells}
+      <td class="pay" style="color:${owed?"var(--coral-deep)":"var(--court-deep)"}">${bhd(owed)}</td></tr>`;
+  }).join("");
+
+  const footer = `<tr><td></td><td></td>
+    ${sessions.map(s => `<td></td><td>${bhd(Object.values(s.shares).reduce((a,b)=>a+b,0))}</td>`).join("")}
+    <td>${bhd(members.reduce((sum,m) => sum + outstandingFils(fl,m.id), 0))}</td></tr>`;
+  const title = PERIOD === "all" ? "All recorded games" : `${PERIOD_LABEL[PERIOD]} view — ${sessions.length} game(s)`;
+
+  return `
+  <div class="card no-print"><h2 class="tab-report">Report</h2>
+    <div class="row">
+      <div class="field"><label>Period</label>
+        <select onchange="setPeriod(this.value)">${Object.entries(PERIOD_LABEL).map(([k,v]) =>
+          `<option value="${k}" ${PERIOD===k?"selected":""}>${v}</option>`).join("")}</select></div>
+      <div class="field"><label>Date within period</label>
+        <input type="date" value="${ANCHOR}" onchange="setAnchor(this.value)" ${PERIOD==="all"?"disabled":""}></div>
+      <div class="field"><label>&nbsp;</label><button class="primary" onclick="window.print()">🖨️ Print / Save PDF</button></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2 class="tab-report" style="text-align:center;font-size:19px">${escapeHtml(fl.flightName)} — Shuttle Cost Sheet</h2>
+    <p class="sub" style="text-align:center">${title}${fl.currentAdmin ? ` · Printed by ${escapeHtml(fl.currentAdmin.name)}` : ""}</p>
+    ${sessions.length ? `<div style="overflow-x:auto"><table class="report"><thead>
+      <tr><th rowspan="2" style="width:38px">S.No</th><th rowspan="2">Name</th>${header}
+        <th rowspan="8" style="width:100px;color:#3a2b00">Amount<br>to Pay</th></tr>
+      <tr>${sessions.map(()=>`<th></th><th></th>`).join("")}</tr></thead>
+      <tbody>
+        ${metric("No. of Shuttles Used", s => s.shuttlesUsed)}
+        ${metric("No. of Players Present", s => s.presentIds.length)}
+        ${metric("No. of Players Absent", s => members.length - s.presentIds.length)}
+        ${metric("Shuttle Cost", s => bhd(s.totalCostFils))}
+        ${metric("Each Share", s => bhd(Math.round(s.totalCostFils / s.presentIds.length)))}
+        ${body}
+      </tbody><tfoot>${footer}</tfoot></table></div>`
+      : `<p class="muted" style="text-align:center;padding:30px">No games in this period.</p>`}
+  </div>`;
+}
+function setPeriod(v){ PERIOD = v; render(); }
+function setAnchor(v){ ANCHOR = v; render(); }
+
+/* =============================== BOOT =============================== */
+(async function boot(){
+  const params = new URLSearchParams(location.search);
+  const publicToken = params.get("p");
+  if(publicToken){ await renderPublicView(publicToken); return; }
+
+  if(getToken()){
+    try{
+      await refreshFlight();
+      if(STATE.fl?.currentAdmin?.mustChangePin){ STATE.page = "mustChangePin"; }
+    }catch{}
+  }
+  render();
+})();
+</script>
+</body>
+</html>
