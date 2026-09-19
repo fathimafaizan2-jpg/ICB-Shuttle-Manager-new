@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{
   --navy:#152a54; --navy-deep:#0c1830; --gold:#f4b400; --gold-deep:#c98f00;
@@ -184,8 +185,6 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 }
 .summary div span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.4px;}
 .summary div strong{font-size:20px;color:var(--navy);font-family:'Poppins',sans-serif;}
-
-.reminder-card{border:2px solid var(--wa);background:#effcf3;}
 
 .payline{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;}
 .payline:last-child{border-bottom:none;}
@@ -434,6 +433,36 @@ function toggleEye(id, btn){
   else { el.type = "password"; btn.textContent = "👁"; }
 }
 
+/* Captures a section of the page as a PNG and hands it to the phone's
+   native Share sheet (WhatsApp shows up there as one option among
+   others) — or downloads it on desktops that don't support file sharing. */
+async function shareScreenshot(elementId, filename, shareText){
+  const el = document.getElementById(elementId);
+  if(!el){ toast("Nothing to capture."); return; }
+  if(typeof html2canvas === "undefined"){ toast("Screenshot tool didn't load — check your connection."); return; }
+  toast("Preparing screenshot…");
+  try{
+    const canvas = await html2canvas(el, { backgroundColor: "#ffffff", scale: 2 });
+    canvas.toBlob(async (blob) => {
+      if(!blob){ toast("Couldn't create the image."); return; }
+      const file = new File([blob], filename, { type: "image/png" });
+      if(navigator.canShare && navigator.canShare({ files:[file] })){
+        try{ await navigator.share({ files:[file], title: filename, text: shareText }); }
+        catch(e){ /* user cancelled the share sheet — not an error */ }
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast("Screenshot saved — attach it in WhatsApp manually.");
+      }
+    }, "image/png");
+  }catch(err){
+    toast("Couldn't capture the screenshot.");
+  }
+}
+
 function renderLogsHtml(sessions, auditLog, members){
   const gameSorted = sessions.slice().sort((a,b) => b.date.localeCompare(a.date));
   const activeNames = members.filter(m => m.active !== false).map(m => m.name);
@@ -456,8 +485,11 @@ function renderLogsHtml(sessions, auditLog, members){
   </tr>`).join("");
 
   return `
-  <div class="card">
-    <h2>Game log</h2>
+  <div class="card" id="gameLogCapture">
+    <div class="row" style="justify-content:space-between">
+      <h2>Game log</h2>
+      <button class="wa no-print" onclick="shareScreenshot('gameLogCapture','game-log.png','Game log')">📸 Share screenshot</button>
+    </div>
     <p class="sub">One row per saved game. Stock shown elsewhere is current-only.</p>
     <div style="overflow-x:auto"><table>
       <tr><th>Date</th><th class="num">Shuttles</th><th>Present</th><th>Absent</th><th class="num">Cost</th></tr>
@@ -584,7 +616,6 @@ async function resetWithRecoveryCode(){
 }
 
 function pageMustChangePin(){
-  // Intentionally no back button — setting a fresh PIN here is required, not optional.
   return `
   <div class="card gate">
     <h2>Set your own PIN</h2>
@@ -678,7 +709,7 @@ async function renderOwnerDashboard(){
   document.getElementById("content").innerHTML = `
     <div class="card">
       <h2 class="tab-setup">All flights (${OWNER_FLIGHTS.length})</h2>
-      <p class="sub">Tap a flight to manage it.</p>
+      <p class="sub">Tap a flight to manage it. "Claimed" appears once the admin has actually signed in and set their own PIN — not just when you issue one.</p>
       ${rows || `<p class="muted">No flights yet.</p>`}
     </div>
     <div class="card">
@@ -758,7 +789,7 @@ async function assignFlightAdmin(encodedName){
   if(!newPin || !/^\d{4,6}$/.test(newPin)){ toast("PIN must be 4–6 digits."); return; }
   try{
     await ownerApi(`/api/owner/flights/${encodeURIComponent(name)}/assign`, { method:"POST", body: JSON.stringify({ adminName: adminName.trim(), newPin }) });
-    toast(`${adminName.trim()} can sign in now — they'll set their own PIN.`);
+    toast(`${adminName.trim()} can sign in now — they'll set their own PIN, and only then will this flight show as claimed.`);
     render();
   }catch(err){ toast(err.message); }
 }
@@ -1459,9 +1490,6 @@ function deleteSession(id){
 /* ===================================================================
    TAB — PAYMENTS
    =================================================================== */
-let REMINDER_QUEUE = [];
-let REMINDER_POS = 0;
-
 function agingBadge(days){
   if(days >= 30) return `<span class="badge b-critical">${days}d overdue</span>`;
   if(days >= 14) return `<span class="badge b-warn">${days}d overdue</span>`;
@@ -1473,7 +1501,6 @@ function pagePayments(fl){
   if(!withCharges.length) return `<div class="card"><h2 class="tab-payments">Nothing to collect yet</h2></div>`;
 
   const totalOwed = withCharges.reduce((sum,m) => sum + outstandingFils(fl, m.id), 0);
-  const remindable = withCharges.filter(m => m.phone && outstandingFils(fl, m.id) > 0);
 
   const rows = withCharges.map(m => {
     const owed = outstandingFils(fl, m.id);
@@ -1504,185 +1531,4 @@ function pagePayments(fl){
 
     return `<div class="card" style="margin-bottom:12px">
       <div class="row" style="justify-content:space-between;margin-bottom:${unpaid.length?"6px":"0"}">
-        <h2 style="margin:0;font-size:15px">${escapeHtml(m.name)}</h2>
-        <div class="row">
-          <strong style="color:${owed?"var(--coral-deep)":"var(--court-deep)"};font-size:16px;font-family:'Poppins',sans-serif">BHD ${bhd(owed)}</strong>
-          ${owed ? `<button class="primary" onclick="settleAll('${m.id}')">Settle all</button>` : `<span class="badge b-paid">All settled</span>`}
-        </div>
-      </div>
-      ${gameLines}
-    </div>`;
-  }).join("");
-
-  return `
-  <div class="card"><h2 class="tab-payments">Who still owes</h2>
-    <p class="sub">Type the amount a player paid you and click "Add payment" — enter the full amount to clear a game, or less for a partial payment. Both "Add payment" and "Settle all" can be undone for a few seconds right after.</p>
-    <div class="summary" style="margin-bottom:16px">
-      <div><span>Total outstanding</span><strong style="color:var(--coral-deep)">BHD ${bhd(totalOwed)}</strong></div>
-      <div><span>Players owing</span><strong>${withCharges.filter(m => outstandingFils(fl,m.id)>0).length}</strong></div>
-      <div><span>Games recorded</span><strong>${fl.sessions.length}</strong></div>
-    </div>
-    ${remindable.length ? `<button class="wa" onclick="startReminderQueue()">📱 Send Reminders (${remindable.length})</button>` : ""}
-  </div>
-  <div id="reminderArea"></div>
-  ${rows}`;
-}
-
-// Captures the prior amount for this one charge before applying the
-// payment, so a mistaken entry can be undone for a few seconds.
-async function addPayment(sessionId, memberId){
-  const key = `${sessionId}_${memberId}`;
-  const input = document.getElementById(`pay_${key}`);
-  const amountFils = Math.round(Number(input.value) * 1000);
-  if(!amountFils || amountFils <= 0){ toast("Enter an amount in BHD."); return; }
-
-  const priorAmount = paidAmountFor(STATE.fl, key, STATE.fl.sessions.find(s => s.id === sessionId)?.shares[memberId] || 0);
-
-  try{
-    STATE.fl = await api(`/api/payments/${sessionId}/${memberId}/pay-partial`, { method:"POST", body: JSON.stringify({ amountFils }) });
-    render();
-    showUndoBar("Payment recorded.", async () => {
-      try{
-        STATE.fl = await api("/api/payments/restore", { method:"POST", body: JSON.stringify({ entries: [{ sessionId, memberId, amount: priorAmount }] }) });
-        render();
-        toast("Undone.");
-      }catch(err){ toast(err.message); }
-    });
-  }catch(err){ toast(err.message); }
-}
-
-// Captures every prior payment amount before settling, so a mistaken
-// "Settle all" can be reversed exactly within the undo window.
-async function settleAll(memberId){
-  const m = STATE.fl.members.find(x => x.id===memberId);
-  if(!confirm(`Mark everything as received from ${m.name}?`)) return;
-
-  const priorEntries = STATE.fl.sessions
-    .filter(s => s.shares[memberId])
-    .map(s => ({ sessionId: s.id, memberId, amount: paidAmountFor(STATE.fl, `${s.id}_${memberId}`, s.shares[memberId]) }));
-
-  try{
-    STATE.fl = await api(`/api/payments/${memberId}/settle-all`, { method:"POST" });
-    render();
-    showUndoBar(`${m.name} settled.`, async () => {
-      try{
-        STATE.fl = await api("/api/payments/restore", { method:"POST", body: JSON.stringify({ entries: priorEntries }) });
-        render();
-        toast("Undone.");
-      }catch(err){ toast(err.message); }
-    });
-  }catch(err){ toast(err.message); }
-}
-
-function startReminderQueue(){
-  const fl = STATE.fl;
-  REMINDER_QUEUE = fl.members
-    .filter(m => m.phone && outstandingFils(fl, m.id) > 0)
-    .map(m => ({ id: m.id, name: m.name, phone: m.phone, owed: outstandingFils(fl, m.id) }));
-  REMINDER_POS = 0;
-  renderReminderStep();
-}
-function renderReminderStep(){
-  const area = document.getElementById("reminderArea");
-  if(REMINDER_POS >= REMINDER_QUEUE.length){
-    area.innerHTML = `<div class="card reminder-card"><p>✅ All reminders sent.</p></div>`;
-    return;
-  }
-  const m = REMINDER_QUEUE[REMINDER_POS];
-  area.innerHTML = `<div class="card reminder-card">
-    <h2 style="color:var(--wa-deep)">Reminder ${REMINDER_POS+1} of ${REMINDER_QUEUE.length}</h2>
-    <p><strong>${escapeHtml(m.name)}</strong> owes BHD ${bhd(m.owed)}</p>
-    <div class="row">
-      <button class="wa" onclick="sendCurrentReminder()">📱 Open WhatsApp &amp; next</button>
-      <button onclick="skipCurrentReminder()">Skip</button>
-      <button class="ghost" onclick="document.getElementById('reminderArea').innerHTML=''">Cancel</button>
-    </div>
-  </div>`;
-}
-function sendCurrentReminder(){
-  const m = REMINDER_QUEUE[REMINDER_POS];
-  const digits = m.phone.replace(/[^\d]/g, "");
-  const msg = `Hi ${m.name}, your shuttle payment of BHD ${bhd(m.owed)} for ${STATE.fl.flightName} is pending. Please settle when you can.`;
-  window.open(`https://wa.me/${digits}?text=${encodeURIComponent(msg)}`, "_blank");
-  REMINDER_POS++;
-  renderReminderStep();
-}
-function skipCurrentReminder(){ REMINDER_POS++; renderReminderStep(); }
-
-/* ===================================================================
-   TAB — REPORT (P/A marks)
-   =================================================================== */
-let PERIOD = "month";
-let ANCHOR = todayISO();
-const PERIOD_LABEL = { day:"Day", week:"Week", month:"Month", all:"All time" };
-
-function pageReport(fl){
-  const sessions = sessionsInPeriod(fl, PERIOD, ANCHOR);
-  const members = fl.members.filter(m => m.active || fl.sessions.some(s => s.shares[m.id]));
-  const header = sessions.map(s => `<th colspan="2">${shortDate(s.date)}</th>`).join("");
-  const metric = (label, fn) => `<tr class="metric"><td></td><td>${label}</td>
-    ${sessions.map(s => `<td></td><td class="num">${fn(s)}</td>`).join("")}</tr>`;
-
-  const body = members.map((m,i) => {
-    const cells = sessions.map(s => s.shares[m.id]
-      ? `<td class="pmark">P</td><td class="shr">${bhd(s.shares[m.id])}</td>`
-      : `<td class="amark">A</td><td class="shr"></td>`).join("");
-    const owed = outstandingFils(fl, m.id);
-    return `<tr><td class="num">${i+1}</td><td>${escapeHtml(m.name)}</td>${cells}
-      <td class="pay" style="color:${owed?"var(--coral-deep)":"var(--court-deep)"}">${bhd(owed)}</td></tr>`;
-  }).join("");
-
-  const footer = `<tr><td></td><td></td>
-    ${sessions.map(s => `<td></td><td>${bhd(Object.values(s.shares).reduce((a,b)=>a+b,0))}</td>`).join("")}
-    <td>${bhd(members.reduce((sum,m) => sum + outstandingFils(fl,m.id), 0))}</td></tr>`;
-  const title = PERIOD === "all" ? "All recorded games" : `${PERIOD_LABEL[PERIOD]} view — ${sessions.length} game(s)`;
-
-  return `
-  <div class="card no-print"><h2 class="tab-report">Report</h2>
-    <div class="row">
-      <div class="field"><label>Period</label>
-        <select onchange="setPeriod(this.value)">${Object.entries(PERIOD_LABEL).map(([k,v]) =>
-          `<option value="${k}" ${PERIOD===k?"selected":""}>${v}</option>`).join("")}</select></div>
-      <div class="field"><label>Date within period</label>
-        <input type="date" value="${ANCHOR}" onchange="setAnchor(this.value)" ${PERIOD==="all"?"disabled":""}></div>
-      <div class="field"><label>&nbsp;</label><button class="primary" onclick="window.print()">🖨️ Print / Save PDF</button></div>
-    </div>
-  </div>
-  <div class="card">
-    <h2 class="tab-report" style="text-align:center;font-size:19px">${escapeHtml(fl.flightName)} — Shuttle Cost Sheet</h2>
-    <p class="sub" style="text-align:center">${title}${fl.currentAdmin ? ` · Printed by ${escapeHtml(fl.currentAdmin.name)}` : ""}</p>
-    ${sessions.length ? `<div style="overflow-x:auto"><table class="report"><thead>
-      <tr><th rowspan="2" style="width:38px">S.No</th><th rowspan="2">Name</th>${header}
-        <th rowspan="8" style="width:100px;color:#3a2b00">Amount<br>to Pay</th></tr>
-      <tr>${sessions.map(()=>`<th></th><th></th>`).join("")}</tr></thead>
-      <tbody>
-        ${metric("No. of Shuttles Used", s => s.shuttlesUsed)}
-        ${metric("No. of Players Present", s => s.presentIds.length)}
-        ${metric("No. of Players Absent", s => members.length - s.presentIds.length)}
-        ${metric("Shuttle Cost", s => bhd(s.totalCostFils))}
-        ${metric("Each Share", s => bhd(Math.round(s.totalCostFils / s.presentIds.length)))}
-        ${body}
-      </tbody><tfoot>${footer}</tfoot></table></div>`
-      : `<p class="muted" style="text-align:center;padding:30px">No games in this period.</p>`}
-  </div>`;
-}
-function setPeriod(v){ PERIOD = v; render(); }
-function setAnchor(v){ ANCHOR = v; render(); }
-
-/* =============================== BOOT =============================== */
-(async function boot(){
-  const params = new URLSearchParams(location.search);
-  const publicToken = params.get("p");
-  if(publicToken){ await renderPublicView(publicToken); return; }
-
-  if(getToken()){
-    try{
-      await refreshFlight();
-      if(STATE.fl?.currentAdmin?.mustChangePin){ STATE.page = "mustChangePin"; }
-    }catch{}
-  }
-  render();
-})();
-</script>
-</body>
-</html>
+        <h2 style="margin:0;font-size:15px
