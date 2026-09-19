@@ -90,6 +90,8 @@ button.ghost{background:rgba(255,255,255,.08);color:#e6ecf7;box-shadow:none;bord
 button.ghost:active{transform:none;background:rgba(255,255,255,.16);}
 button.link-btn{background:none;box-shadow:none;padding:4px 6px;color:var(--court);font-weight:600;text-decoration:underline;}
 button.link-btn:active{transform:none;}
+button.eye-btn{padding:8px 12px;flex-shrink:0;}
+button.back-btn{background:#eef1f6;color:var(--navy);font-weight:700;}
 
 nav{display:flex; gap:4px; background:var(--navy-deep); padding:0 16px; overflow-x:auto; box-shadow:inset 0 -1px 0 rgba(255,255,255,.06);}
 nav button{
@@ -417,6 +419,21 @@ function confirmScoped(message, word){
   return typed === word;
 }
 
+/* Reusable password/PIN field with a show/hide eye toggle. */
+function pinField(id, placeholder, opts = {}){
+  const cls = opts.big ? "pin-input" : "";
+  const style = opts.style || "flex:1;min-width:0";
+  return `<div class="row" style="gap:6px">
+    <input class="${cls}" id="${id}" type="password" inputmode="${opts.numeric===false?'text':'numeric'}" maxlength="${opts.maxlength||6}" placeholder="${placeholder}" style="${style}">
+    <button type="button" class="eye-btn" onclick="toggleEye('${id}', this)">👁</button>
+  </div>`;
+}
+function toggleEye(id, btn){
+  const el = document.getElementById(id);
+  if(el.type === "password"){ el.type = "text"; btn.textContent = "🙈"; }
+  else { el.type = "password"; btn.textContent = "👁"; }
+}
+
 function renderLogsHtml(sessions, auditLog, members){
   const gameSorted = sessions.slice().sort((a,b) => b.date.localeCompare(a.date));
   const activeNames = members.filter(m => m.active !== false).map(m => m.name);
@@ -496,7 +513,7 @@ function pageLogin(){
       <label>Your name</label>
       <input id="loginAdminName" placeholder="e.g. Rakesh" style="width:100%">
     </div>
-    <input class="pin-input" id="loginPin" type="password" inputmode="numeric" maxlength="6" placeholder="••••">
+    <div style="margin-bottom:10px">${pinField("loginPin", "••••", { big:true, style:"flex:1;min-width:0;font-size:26px;letter-spacing:12px;text-align:center;font-weight:700" })}</div>
     <button class="primary big" style="width:100%" onclick="attemptLogin()">Continue</button>
     <p style="margin-top:12px"><button class="link-btn" onclick="STATE.page='forgotPin';render()">Forgot your PIN?</button></p>
     <p style="margin-top:4px"><button class="link-btn" style="color:var(--muted);text-decoration:none;font-size:12px" onclick="STATE.page='ownerLogin';render()">Super Admin</button></p>
@@ -544,10 +561,10 @@ function pageForgotPin(){
     </div>
     <div class="field" style="text-align:left;margin-bottom:14px">
       <label>New PIN</label>
-      <input id="newPinRecovery" type="password" inputmode="numeric" maxlength="6" placeholder="New 4\u20136 digit PIN" style="width:100%">
+      ${pinField("newPinRecovery", "New 4–6 digit PIN", { style:"flex:1;min-width:0" })}
     </div>
     <button class="primary big" style="width:100%" onclick="resetWithRecoveryCode()">Reset PIN</button>
-    <p style="margin-top:12px"><button class="link-btn" onclick="STATE.page='session';render()">Back to sign in</button></p>
+    <p style="margin-top:12px"><button class="link-btn back-btn" onclick="STATE.page='session';render()">← Back to sign in</button></p>
   </div>`;
 }
 
@@ -567,11 +584,12 @@ async function resetWithRecoveryCode(){
 }
 
 function pageMustChangePin(){
+  // Intentionally no back button — setting a fresh PIN here is required, not optional.
   return `
   <div class="card gate">
     <h2>Set your own PIN</h2>
     <p class="sub">Your admin PIN was issued to get you started. Please choose your own PIN now — only you should know it.</p>
-    <input class="pin-input" id="firstNewPin" type="password" inputmode="numeric" maxlength="6" placeholder="New PIN">
+    ${pinField("firstNewPin", "New PIN", { style:"flex:1;min-width:0;font-size:26px;letter-spacing:12px;text-align:center;font-weight:700" })}
     <button class="primary big" style="width:100%;margin-top:12px" onclick="confirmFirstPinChange()">Set PIN &amp; continue</button>
   </div>`;
 }
@@ -602,10 +620,10 @@ function pageOwnerLogin(){
     </div>
     <div class="field" style="text-align:left;margin-bottom:10px">
       <label>Password</label>
-      <input id="ownerPassword" type="password" placeholder="Password" style="width:100%">
+      ${pinField("ownerPassword", "Password", { numeric:false, maxlength:64, style:"flex:1;min-width:0" })}
     </div>
     <button class="primary big" style="width:100%" onclick="attemptOwnerLogin()">Continue</button>
-    <p style="margin-top:12px"><button class="link-btn" onclick="STATE.page='session';render()">Back to sign in</button></p>
+    <p style="margin-top:12px"><button class="link-btn back-btn" onclick="STATE.page='session';render()">← Back to sign in</button></p>
   </div>`;
 }
 
@@ -633,7 +651,7 @@ const OWNER_TABS = [["ownerDashboard","Flights"],["ownerLogs","Logs"]];
 
 function ownerNavHtml(){
   return OWNER_TABS.map(([id,label]) =>
-    `<button data-tab="${id}" class="${STATE.page===id||(id==='ownerDashboard'&&STATE.page==='ownerFlightDetail')?"active":""}" onclick="STATE.page='${id}';render()">${label}</button>`).join("");
+    `<button data-tab="${id}" class="${STATE.page===id||(id==='ownerDashboard'&&(STATE.page==='ownerFlightDetail'||STATE.page==='ownerFlightLogsSingle'))?"active":""}" onclick="STATE.page='${id}';render()">${label}</button>`).join("");
 }
 
 async function renderOwnerDashboard(){
@@ -668,7 +686,7 @@ async function renderOwnerDashboard(){
       <div class="row">
         <input id="newFlightName" placeholder="e.g. Flight 5" style="width:150px">
         <input id="newFlightAdmin" placeholder="Admin name" style="width:150px">
-        <input id="newFlightPin" type="password" inputmode="numeric" maxlength="6" placeholder="Initial PIN" style="width:150px">
+        <div style="width:170px">${pinField("newFlightPin", "Initial PIN", { style:"width:100%" })}</div>
         <button class="primary" onclick="addFlight()">Add</button>
       </div>
       <p class="muted" style="margin-top:8px">The admin sets their own PIN the first time they sign in.</p>
@@ -709,6 +727,9 @@ async function renderOwnerFlightDetail(){
   if(!f){ toast("Flight not found."); STATE.page = "ownerDashboard"; render(); return; }
 
   document.getElementById("content").innerHTML = `
+    <div class="card no-print">
+      <button class="back-btn" onclick="STATE.page='ownerDashboard';render()">← Back to Flights</button>
+    </div>
     <div class="card">
       <div class="flight-card-top">
         <span class="flight-card-name">${escapeHtml(f.name)}</span>
@@ -726,9 +747,6 @@ async function renderOwnerFlightDetail(){
         <button onclick="viewFlightLogs('${encodeURIComponent(f.name)}')">Flight logs</button>
         <button class="danger" onclick="removeFlight('${encodeURIComponent(f.name)}')">Delete flight</button>
       </div>
-    </div>
-    <div class="card no-print">
-      <button class="ghost" onclick="STATE.page='ownerDashboard';render()">⬅ Back to all flights</button>
     </div>`;
 }
 
@@ -812,7 +830,7 @@ async function renderOwnerFlightLogsSingle(){
     return;
   }
   document.getElementById("content").innerHTML =
-    `<div class="card no-print"><button class="ghost" onclick="openFlightDetail('${encodeURIComponent(OWNER_LOG_FLIGHT)}')">⬅ Back to ${escapeHtml(OWNER_LOG_FLIGHT)}</button></div>` +
+    `<div class="card no-print"><button class="back-btn" onclick="openFlightDetail('${encodeURIComponent(OWNER_LOG_FLIGHT)}')">← Back to ${escapeHtml(OWNER_LOG_FLIGHT)}</button></div>` +
     renderLogsHtml(logData.sessions, logData.auditLog, logData.members);
 }
 
@@ -855,12 +873,16 @@ async function renderOwnerLogsAll(){
     return;
   }
 
-  document.getElementById("content").innerHTML = renderOwnerLogsCategory();
+  document.getElementById("content").innerHTML =
+    `<div class="card no-print"><button class="back-btn" onclick="STATE.page='ownerDashboard';render()">← Back to Flights</button></div>` +
+    renderOwnerLogsCategory();
 }
 
 function setOwnerLogCategory(cat){
   OWNER_LOG_CATEGORY = cat;
-  document.getElementById("content").innerHTML = renderOwnerLogsCategory();
+  document.getElementById("content").innerHTML =
+    `<div class="card no-print"><button class="back-btn" onclick="STATE.page='ownerDashboard';render()">← Back to Flights</button></div>` +
+    renderOwnerLogsCategory();
 }
 
 function renderOwnerLogsCategory(){
@@ -1030,7 +1052,7 @@ function pageAdmins(fl){
     <h2 class="tab-setup">Add an admin</h2>
     <div class="row">
       <input id="newAdminName" placeholder="Name" style="width:170px">
-      <input id="newAdminPin" type="password" inputmode="numeric" maxlength="6" placeholder="Temporary PIN" style="width:170px">
+      <div style="width:190px">${pinField("newAdminPin", "Temporary PIN", { style:"width:100%" })}</div>
       <button class="primary" onclick="addAdmin()">Add admin</button>
     </div>
   </div>`;
@@ -1108,8 +1130,8 @@ function pageSetup(fl){
       <h2 class="tab-setup">Change your PIN</h2>
       <p class="sub">Only someone who already knows the current PIN can change it.</p>
       <div class="row">
-        <input type="password" inputmode="numeric" maxlength="6" id="oldPin" placeholder="Current PIN" style="width:130px">
-        <input type="password" inputmode="numeric" maxlength="6" id="newPin" placeholder="New PIN" style="width:130px">
+        <div style="width:150px">${pinField("oldPin", "Current PIN", { style:"width:100%" })}</div>
+        <div style="width:150px">${pinField("newPin", "New PIN", { style:"width:100%" })}</div>
         <button class="primary" onclick="changePin()">Update PIN</button>
       </div>
     </div>
@@ -1494,7 +1516,7 @@ function pagePayments(fl){
 
   return `
   <div class="card"><h2 class="tab-payments">Who still owes</h2>
-    <p class="sub">Type the amount a player paid you and click "Add payment" — enter the full amount to clear a game, or less for a partial payment. "Settle all" clears everything for that player at once, and can be undone for a few seconds right after.</p>
+    <p class="sub">Type the amount a player paid you and click "Add payment" — enter the full amount to clear a game, or less for a partial payment. Both "Add payment" and "Settle all" can be undone for a few seconds right after.</p>
     <div class="summary" style="margin-bottom:16px">
       <div><span>Total outstanding</span><strong style="color:var(--coral-deep)">BHD ${bhd(totalOwed)}</strong></div>
       <div><span>Players owing</span><strong>${withCharges.filter(m => outstandingFils(fl,m.id)>0).length}</strong></div>
@@ -1506,14 +1528,26 @@ function pagePayments(fl){
   ${rows}`;
 }
 
+// Captures the prior amount for this one charge before applying the
+// payment, so a mistaken entry can be undone for a few seconds.
 async function addPayment(sessionId, memberId){
   const key = `${sessionId}_${memberId}`;
   const input = document.getElementById(`pay_${key}`);
   const amountFils = Math.round(Number(input.value) * 1000);
   if(!amountFils || amountFils <= 0){ toast("Enter an amount in BHD."); return; }
+
+  const priorAmount = paidAmountFor(STATE.fl, key, STATE.fl.sessions.find(s => s.id === sessionId)?.shares[memberId] || 0);
+
   try{
     STATE.fl = await api(`/api/payments/${sessionId}/${memberId}/pay-partial`, { method:"POST", body: JSON.stringify({ amountFils }) });
-    render(); toast("Payment recorded.");
+    render();
+    showUndoBar("Payment recorded.", async () => {
+      try{
+        STATE.fl = await api("/api/payments/restore", { method:"POST", body: JSON.stringify({ entries: [{ sessionId, memberId, amount: priorAmount }] }) });
+        render();
+        toast("Undone.");
+      }catch(err){ toast(err.message); }
+    });
   }catch(err){ toast(err.message); }
 }
 
