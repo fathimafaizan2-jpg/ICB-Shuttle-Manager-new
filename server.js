@@ -62,6 +62,17 @@ function logEvent(data, actor, action){
   if(data.auditLog.length > 300) data.auditLog = data.auditLog.slice(-300);
 }
 
+// Writes ONLY the given top-level fields of the flight document, instead of
+// re-sending the whole document (admins/members/sessions/paid/auditLog) on
+// every action. This is the main latency fix: the bigger a flight's history
+// gets, the more this matters — a PIN change no longer has to move the
+// entire session history over the wire, for example.
+async function saveFields(ref, data, fields){
+  const patch = {};
+  fields.forEach(f => { patch[f] = data[f]; });
+  await ref.update(patch);
+}
+
 async function getFlightNames(){
   const snap = await metaFlightsRef.get();
   if(!snap.exists){
@@ -145,7 +156,6 @@ function publicFlight(name, data, currentAdminId){
 app.get("/api/ping", (req, res) => res.json({ ok: true }));
 app.get("/api/flights", async (req, res) => res.json(await getFlightNames()));
 
-// Player self-link — full personal summary, not just unpaid games.
 app.get("/api/public/:token", async (req, res) => {
   const snapshot = await flights.get();
   for(const doc of snapshot.docs){
@@ -197,14 +207,14 @@ app.post("/api/login", async (req, res) => {
       a.lockUntil = new Date(Date.now() + LOCK_MINUTES * 60000).toISOString();
       a.failedAttempts = 0;
     }
-    await ref.set(data);
+    await saveFields(ref, data, ["admins"]);
     return res.status(401).json({ message: "Incorrect name or PIN." });
   }
 
   a.failedAttempts = 0; a.lockUntil = null;
   a.lastActiveAt = new Date().toISOString();
   logEvent(data, a.name, "Signed in");
-  await ref.set(data);
+  await saveFields(ref, data, ["admins", "auditLog"]);
 
   const token = jwt.sign({ flightName, adminId: a.id, tokenVersion: a.tokenVersion || 0 }, JWT_SECRET, { expiresIn: "30d" });
   res.json({ token, flight: publicFlight(flightName, data, a.id) });
@@ -228,7 +238,7 @@ app.post("/api/recover/pin", async (req, res) => {
   a.tokenVersion = (a.tokenVersion || 0) + 1;
   a.failedAttempts = 0; a.lockUntil = null;
   logEvent(data, a.name, "Reset their own PIN via recovery code");
-  await ref.set(data);
+  await saveFields(ref, data, ["admins", "auditLog"]);
   res.json({ success: true });
 });
 
@@ -266,8 +276,6 @@ app.get("/api/owner/flights", ownerMiddleware, async (req, res) => {
   res.json(list);
 });
 
-// Categorized, all-flights logs for Super Admin: attendance, shuttle usage,
-// payments, and a live arrears snapshot.
 app.get("/api/owner/logs", ownerMiddleware, async (req, res) => {
   const names = await getFlightNames();
   const attendance = [];
@@ -371,7 +379,7 @@ app.post("/api/owner/flights/:name/assign", ownerMiddleware, async (req, res) =>
     logEvent(data, "Super Admin", `Added a new admin: ${adminName}`);
   }
   ensureMemberForAdmin(data, adminName);
-  await ref.set(data);
+  await saveFields(ref, data, ["admins", "members", "auditLog"]);
   res.json({ success: true });
 });
 
@@ -405,7 +413,7 @@ app.post("/api/owner/flights/:name/revoke", ownerMiddleware, async (req, res) =>
 
   data.admins = data.admins.filter(x => x.id !== a.id);
   logEvent(data, "Super Admin", `Removed admin: ${a.name}`);
-  await ref.set(data);
+  await saveFields(ref, data, ["admins", "auditLog"]);
   res.json({ success: true });
 });
 
@@ -492,7 +500,7 @@ app.post("/api/flight/settings", async (req, res) => {
     }
   }
   logEvent(data, adm.name, `Updated settings (tube price BHD ${(data.tubePriceFils/1000).toFixed(3)}, ${data.shuttlesPerTube}/tube${stockNote})`);
-  await ref.set(data);
+  await saveFields(ref, data, ["tubePriceFils", "shuttlesPerTube", "shuttlesInStock", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -507,7 +515,7 @@ app.post("/api/flight/pin", async (req, res) => {
   adm.mustChangePin = false;
   adm.tokenVersion = (adm.tokenVersion || 0) + 1;
   logEvent(data, adm.name, "Changed their own PIN");
-  await ref.set(data);
+  await saveFields(ref, data, ["admins", "auditLog"]);
   res.json({ success: true });
 });
 
@@ -521,7 +529,7 @@ app.post("/api/flight/pin/confirm-change", async (req, res) => {
   adm.mustChangePin = false;
   adm.tokenVersion = (adm.tokenVersion || 0) + 1;
   logEvent(data, adm.name, "Set their own PIN for the first time");
-  await ref.set(data);
+  await saveFields(ref, data, ["admins", "auditLog"]);
   res.json({ success: true });
 });
 
@@ -532,7 +540,7 @@ app.post("/api/flight/recovery-code", async (req, res) => {
   if(code.length < 4) return res.status(400).json({ message: "Recovery code should be at least 4 characters." });
   adm.recoveryCodeHash = await bcrypt.hash(code, 10);
   logEvent(data, adm.name, "Set their recovery code");
-  await ref.set(data);
+  await saveFields(ref, data, ["admins", "auditLog"]);
   res.json({ success: true });
 });
 
@@ -550,7 +558,7 @@ app.post("/api/flight/admins", async (req, res) => {
   data.admins.push(newAdmin);
   ensureMemberForAdmin(data, name);
   logEvent(data, adm.name, `Added a new admin: ${name}`);
-  await ref.set(data);
+  await saveFields(ref, data, ["admins", "members", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -562,7 +570,7 @@ app.delete("/api/flight/admins/:id", async (req, res) => {
   if(!target) return res.status(404).json({ message: "Admin not found." });
   data.admins = data.admins.filter(a => a.id !== req.params.id);
   logEvent(data, adm.name, `Removed admin: ${target.name}`);
-  await ref.set(data);
+  await saveFields(ref, data, ["admins", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -571,7 +579,7 @@ app.post("/api/flight/stock/reset", async (req, res) => {
   const { ref, data, admin: adm } = ctx;
   data.shuttlesInStock = 0;
   logEvent(data, adm.name, "Reset stock to 0");
-  await ref.set(data);
+  await saveFields(ref, data, ["shuttlesInStock", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -581,7 +589,7 @@ app.delete("/api/flight/members/clear-all", async (req, res) => {
   const count = data.members.length;
   data.members = [];
   logEvent(data, adm.name, `Removed all members (${count})`);
-  await ref.set(data);
+  await saveFields(ref, data, ["members", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -592,7 +600,7 @@ app.delete("/api/flight/sessions/clear-all", async (req, res) => {
   data.sessions = [];
   data.paid = {};
   logEvent(data, adm.name, `Cleared all games (${count})`);
-  await ref.set(data);
+  await saveFields(ref, data, ["sessions", "paid", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -610,7 +618,7 @@ app.post("/api/members", async (req, res) => {
     name, phone, publicToken: genToken(), active: true
   });
   logEvent(data, adm.name, `Added member: ${name}`);
-  await ref.set(data);
+  await saveFields(ref, data, ["members", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -621,7 +629,7 @@ app.patch("/api/members/:id/toggle", async (req, res) => {
   if(!m) return res.status(404).json({ message: "Member not found." });
   m.active = !m.active;
   logEvent(data, adm.name, `${m.active ? "Activated" : "Deactivated"} member: ${m.name}`);
-  await ref.set(data);
+  await saveFields(ref, data, ["members", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -640,7 +648,7 @@ app.patch("/api/members/:id", async (req, res) => {
   if(phone !== undefined) m.phone = String(phone).trim();
   if(!m.publicToken) m.publicToken = genToken();
   logEvent(data, adm.name, `Edited member: ${oldName}${m.name !== oldName ? ` → ${m.name}` : ""}`);
-  await ref.set(data);
+  await saveFields(ref, data, ["members", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -653,7 +661,7 @@ app.delete("/api/members/:id", async (req, res) => {
   if(owed > 0) return res.status(409).json({ message: `${m.name} still owes BHD ${(owed/1000).toFixed(3)} — settle that first.` });
   data.members = data.members.filter(x => x.id !== req.params.id);
   logEvent(data, adm.name, `Deleted member: ${m.name}`);
-  await ref.set(data);
+  await saveFields(ref, data, ["members", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -680,7 +688,7 @@ app.post("/api/sessions", async (req, res) => {
   data.shuttlesInStock = (data.shuttlesInStock || 0) - shuttlesUsed;
   logEvent(data, adm.name, `Saved game ${date}: ${shuttlesUsed} shuttles used, ${presentIds.length} present`);
 
-  await ref.set(data);
+  await saveFields(ref, data, ["sessions", "shuttlesInStock", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -694,7 +702,7 @@ app.delete("/api/sessions/:id", async (req, res) => {
     data.shuttlesInStock = (data.shuttlesInStock || 0) + session.shuttlesUsed;
     logEvent(data, adm.name, `Deleted game ${session.date}`);
   }
-  await ref.set(data);
+  await saveFields(ref, data, ["sessions", "paid", "shuttlesInStock", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -710,7 +718,7 @@ app.post("/api/payments/:sessionId/:memberId/pay-partial", async (req, res) => {
   data.paid[key] = Math.min(share, already + amountFils);
   const memberName = memberNameById(data.members, req.params.memberId);
   logEvent(data, adm.name, `Recorded payment: BHD ${(amountFils/1000).toFixed(3)} from ${memberName}${session ? ` for ${session.date}` : ""}`);
-  await ref.set(data);
+  await saveFields(ref, data, ["paid", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
@@ -720,12 +728,10 @@ app.post("/api/payments/:memberId/settle-all", async (req, res) => {
   data.sessions.forEach(s => { if(s.shares[req.params.memberId]) data.paid[`${s.id}_${req.params.memberId}`] = s.shares[req.params.memberId]; });
   const memberName = memberNameById(data.members, req.params.memberId);
   logEvent(data, adm.name, `Settled all outstanding for ${memberName}`);
-  await ref.set(data);
+  await saveFields(ref, data, ["paid", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
-// Reverses a settle-all (or any set of payment changes) by restoring exact
-// prior amounts — used by the Undo bar right after settling.
 app.post("/api/payments/restore", async (req, res) => {
   const ctx = await loadFlightChecked(req, res); if(!ctx) return;
   const { ref, data, admin: adm } = ctx;
@@ -736,7 +742,7 @@ app.post("/api/payments/restore", async (req, res) => {
     if(amount > 0) data.paid[key] = amount; else delete data.paid[key];
   });
   logEvent(data, adm.name, "Undid a payment settlement");
-  await ref.set(data);
+  await saveFields(ref, data, ["paid", "auditLog"]);
   res.json(publicFlight(req.flightName, data, adm.id));
 });
 
