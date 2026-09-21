@@ -94,28 +94,43 @@ button.link-btn:active{transform:none;}
 button.eye-btn{padding:8px 12px;flex-shrink:0;}
 button.back-btn{background:#eef1f6;color:var(--navy);font-weight:700;}
 
-nav{display:flex; gap:4px; background:var(--navy-deep); padding:6px 12px; overflow-x:auto; box-shadow:inset 0 -1px 0 rgba(255,255,255,.06);}
+/* ============== SIDE NAVIGATION ============== */
+.app-body{display:flex;align-items:flex-start;width:100%;flex:1;}
+nav{
+  display:flex;flex-direction:column;gap:4px;
+  background:var(--navy-deep);
+  padding:14px 8px;
+  width:140px;flex-shrink:0;
+  min-height:calc(100vh - 73px);
+  box-shadow:inset -1px 0 0 rgba(255,255,255,.06);
+}
 nav button{
-  background:transparent; color:#9fb0cf; border:none; border-radius:8px; box-shadow:none;
-  padding:8px 12px; border-bottom:3px solid transparent; white-space:nowrap;
+  background:transparent; color:#9fb0cf; border:none; border-radius:9px; box-shadow:none;
+  padding:11px 10px; border-left:3px solid transparent;
   font-family:'Poppins',sans-serif;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
-  min-width:56px;
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px;
+  width:100%; text-align:left;
 }
 nav button .nav-num{font-size:10px;font-weight:700;opacity:.75;letter-spacing:.5px;}
-nav button .nav-label{font-size:11.5px;font-weight:700;line-height:1.15;}
+nav button .nav-label{font-size:12.5px;font-weight:700;line-height:1.2;}
 nav button:active{transform:none;}
-nav button.active{color:#fff;background:rgba(255,255,255,.06);}
-nav button[data-tab="session"].active{border-bottom-color:var(--court);}
-nav button[data-tab="payments"].active{border-bottom-color:var(--coral);}
-nav button[data-tab="report"].active{border-bottom-color:var(--gold);}
-nav button[data-tab="logs"].active{border-bottom-color:#a78bfa;}
-nav button[data-tab="admins"].active{border-bottom-color:#38bdf8;}
-nav button[data-tab="setup"].active{border-bottom-color:#7ea6ff;}
-nav button[data-tab="ownerDashboard"].active{border-bottom-color:var(--gold);}
-nav button[data-tab="ownerLogs"].active{border-bottom-color:#a78bfa;}
+nav button.active{color:#fff;background:rgba(255,255,255,.08);}
+nav button[data-tab="session"].active{border-left-color:var(--court);}
+nav button[data-tab="payments"].active{border-left-color:var(--coral);}
+nav button[data-tab="report"].active{border-left-color:var(--gold);}
+nav button[data-tab="logs"].active{border-left-color:#a78bfa;}
+nav button[data-tab="admins"].active{border-left-color:#38bdf8;}
+nav button[data-tab="setup"].active{border-left-color:#7ea6ff;}
+nav button[data-tab="ownerDashboard"].active{border-left-color:var(--gold);}
+nav button[data-tab="ownerLogs"].active{border-left-color:#a78bfa;}
+@media(max-width:700px){
+  nav{width:82px;padding:12px 5px;}
+  nav button{padding:9px 6px;}
+  nav button .nav-label{font-size:10px;}
+  nav button .nav-num{font-size:9px;}
+}
 
-main{max-width:1100px;margin:20px auto;padding:0 16px 44px;flex:1;width:100%;}
+main{flex:1;min-width:0;margin:20px auto;max-width:1000px;padding:0 18px 44px;width:100%;}
 .card{
   background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:16px;
   box-shadow:0 2px 6px rgba(20,30,60,.05), 0 10px 28px rgba(20,30,60,.05);
@@ -246,8 +261,10 @@ footer strong{color:var(--navy);}
   </div>
   <div id="hdrActions"></div>
 </header>
-<nav id="navBar" class="no-print"></nav>
-<main id="content"></main>
+<div class="app-body">
+  <nav id="navBar" class="no-print"></nav>
+  <main id="content"></main>
+</div>
 <footer>Powered by <strong>A1 Technologies</strong></footer>
 <div class="toast" id="toast"></div>
 <div class="undo-bar" id="undoBar"></div>
@@ -1569,10 +1586,6 @@ function pagePayments(fl){
   ${rows}`;
 }
 
-// Ticking the checkbox marks that game's remaining share as fully paid in
-// one step. The row disappears from the list once render() runs (since it
-// no longer has anything unpaid), so there's nothing to "uncheck" later —
-// mistakes are handled by the Undo bar instead.
 async function markPaidCheckbox(checkbox, sessionId, memberId, remainingFils, priorAmount){
   if(!checkbox.checked) return;
   checkbox.disabled = true;
