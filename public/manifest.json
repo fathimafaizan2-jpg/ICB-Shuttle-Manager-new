@@ -1,15 +1,16 @@
 {
-  "name": "Shuttle Session Manager",
-  "short_name": "Shuttle",
-  "description": "Badminton session costing and payment tracking.",
-  "start_url": "./index.html",
-  "scope": "./",
+  "name": "ICB Shuttle Manager",
+  "short_name": "ICB Shuttle",
+  "description": "Badminton session, attendance, and payment tracker for Indian Club Bahrain.",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f5f7fa",
-  "theme_color": "#1b2a4a",
-  "orientation": "portrait",
+  "background_color": "#eef1f7",
+  "theme_color": "#152a54",
+  "orientation": "portrait-primary",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
