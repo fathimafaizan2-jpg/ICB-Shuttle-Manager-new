@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.onrender.icb_shuttle_manager_new.twa",
+        "sha256_cert_fingerprints": ["3E:61:8F:F2:A5:4F:8D:74:2D:B6:50:39:3F:93:F2:31:DE:17:50:7D:50:02:88:05:B0:FD:35:86:8B:5F:46:68"]
+      }
+    }]
