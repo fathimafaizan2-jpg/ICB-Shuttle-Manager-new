@@ -5,16 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ICB Shuttle Manager</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#152a54">
+<meta name="theme-color" content="#1c3766">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{
-  --navy:#152a54; --navy-deep:#0c1830; --gold:#f4b400; --gold-deep:#c98f00;
+  --navy:#1c3766; --navy-deep:#122449; --gold:#f4b400; --gold-deep:#c98f00;
   --court:#0e9469; --court-deep:#0a6b4c; --coral:#e63946; --coral-deep:#a3222c;
   --bg:#eef1f7; --card:#ffffff; --line:#e2e6ef; --text:#1a2332; --muted:#64708a;
   --peach:#fde8dc; --wa:#25D366; --wa-deep:#128c43;
@@ -40,7 +40,7 @@ header{
   background:linear-gradient(135deg,var(--navy),var(--navy-deep));
   color:#fff; padding:16px 22px;
   display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
-  box-shadow:0 4px 14px rgba(0,0,0,.2);
+  box-shadow:0 4px 14px rgba(0,0,0,.15);
 }
 header .brand{display:flex;align-items:center;gap:12px;}
 header .logo{
@@ -94,40 +94,45 @@ button.link-btn:active{transform:none;}
 button.eye-btn{padding:8px 12px;flex-shrink:0;}
 button.back-btn{background:#eef1f6;color:var(--navy);font-weight:700;}
 
-/* ============== SIDE NAVIGATION ============== */
+/* ============== SIDE NAVIGATION (light) ============== */
 .app-body{display:flex;align-items:flex-start;width:100%;flex:1;}
 nav{
   display:flex;flex-direction:column;gap:4px;
-  background:var(--navy-deep);
+  background:var(--card);
   padding:14px 8px;
-  width:140px;flex-shrink:0;
+  width:150px;flex-shrink:0;
   min-height:calc(100vh - 73px);
-  box-shadow:inset -1px 0 0 rgba(255,255,255,.06);
+  border-right:1px solid var(--line);
+  box-shadow:2px 0 10px rgba(20,30,60,.03);
 }
 nav button{
-  background:transparent; color:#9fb0cf; border:none; border-radius:9px; box-shadow:none;
+  background:transparent; color:#4a5a80; border:none; border-radius:9px; box-shadow:none;
   padding:11px 10px; border-left:3px solid transparent;
   font-family:'Poppins',sans-serif;
   display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px;
   width:100%; text-align:left;
 }
-nav button .nav-num{font-size:10px;font-weight:700;opacity:.75;letter-spacing:.5px;}
+nav button .nav-num{font-size:10px;font-weight:700;opacity:.65;letter-spacing:.5px;}
 nav button .nav-label{font-size:12.5px;font-weight:700;line-height:1.2;}
+nav button:hover{background:#f2f4f9;transform:none;}
 nav button:active{transform:none;}
-nav button.active{color:#fff;background:rgba(255,255,255,.08);}
-nav button[data-tab="session"].active{border-left-color:var(--court);}
-nav button[data-tab="payments"].active{border-left-color:var(--coral);}
-nav button[data-tab="report"].active{border-left-color:var(--gold);}
-nav button[data-tab="logs"].active{border-left-color:#a78bfa;}
-nav button[data-tab="admins"].active{border-left-color:#38bdf8;}
-nav button[data-tab="setup"].active{border-left-color:#7ea6ff;}
-nav button[data-tab="ownerDashboard"].active{border-left-color:var(--gold);}
-nav button[data-tab="ownerLogs"].active{border-left-color:#a78bfa;}
+nav button.active[data-tab="session"]{background:#e6f8f0;border-left-color:var(--court);color:var(--court-deep);}
+nav button.active[data-tab="payments"]{background:#fce4e2;border-left-color:var(--coral);color:var(--coral-deep);}
+nav button.active[data-tab="report"]{background:#fdeecb;border-left-color:var(--gold);color:var(--gold-deep);}
+nav button.active[data-tab="logs"]{background:#f1ecfe;border-left-color:#a78bfa;color:#6d47d1;}
+nav button.active[data-tab="admins"]{background:#e6f4fd;border-left-color:#38bdf8;color:#0f76a8;}
+nav button.active[data-tab="setup"]{background:#eaf0ff;border-left-color:#7ea6ff;color:#2451a8;}
+nav button.active[data-tab="ownerDashboard"]{background:#fdeecb;border-left-color:var(--gold);color:var(--gold-deep);}
+nav button.active[data-tab="ownerLogs"]{background:#f1ecfe;border-left-color:#a78bfa;color:#6d47d1;}
 @media(max-width:700px){
-  nav{width:82px;padding:12px 5px;}
-  nav button{padding:9px 6px;}
-  nav button .nav-label{font-size:10px;}
-  nav button .nav-num{font-size:9px;}
+  nav{width:78px;padding:12px 4px;}
+  nav button{padding:9px 4px;align-items:center;text-align:center;}
+  nav button .nav-label{font-size:9.5px;text-align:center;}
+  nav button .nav-num{font-size:8.5px;}
+}
+@media(max-width:420px){
+  nav{width:64px;}
+  nav button .nav-label{font-size:8.5px;}
 }
 
 main{flex:1;min-width:0;margin:20px auto;max-width:1000px;padding:0 18px 44px;width:100%;}
@@ -152,6 +157,7 @@ th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);}
 th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.5px;}
 .num{text-align:right;font-variant-numeric:tabular-nums;}
 .muted{color:var(--muted);font-size:13px;}
+.table-scroll{overflow-x:auto;}
 
 .badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;}
 .b-paid{background:#e1f6ec;color:var(--court-deep);}
@@ -515,7 +521,7 @@ function renderLogsHtml(sessions, auditLog, members){
       <button class="wa no-print" onclick="shareScreenshot('gameLogCapture','game-log.png','Game log')">📸 Share screenshot</button>
     </div>
     <p class="sub">One row per saved game. Stock shown elsewhere is current-only.</p>
-    <div style="overflow-x:auto"><table>
+    <div class="table-scroll"><table>
       <tr><th>Date</th><th class="num">Shuttles</th><th>Present</th><th>Absent</th><th class="num">Cost</th></tr>
       ${gameRows || `<tr><td colspan="5" class="muted">No games recorded yet.</td></tr>`}
     </table></div>
@@ -523,7 +529,7 @@ function renderLogsHtml(sessions, auditLog, members){
   <div class="card">
     <h2>Activity log</h2>
     <p class="sub">Every change made in this flight, most recent first.</p>
-    <div style="overflow-x:auto"><table>
+    <div class="table-scroll"><table>
       <tr><th>Time</th><th>By</th><th>What</th></tr>
       ${actRows || `<tr><td colspan="3" class="muted">No activity recorded yet.</td></tr>`}
     </table></div>
@@ -989,7 +995,7 @@ function renderOwnerLogsCategory(){
   }
 
   return `<div class="card"><div class="row" style="margin-bottom:14px">${nav}</div>
-    <div style="overflow-x:auto">${body}</div></div>`;
+    <div class="table-scroll">${body}</div></div>`;
 }
 
 /* ===================================================================
@@ -1014,7 +1020,7 @@ async function renderPublicView(token){
         <h2>${escapeHtml(data.memberName)}</h2>
         <p style="font-size:30px;font-weight:800;font-family:'Poppins',sans-serif;color:${data.outstandingFils?"var(--coral)":"var(--court)"}">BHD ${bhd(data.outstandingFils)}</p>
         <p class="muted">${data.outstandingFils ? "total outstanding" : "all settled — nothing owed"}</p>
-        ${rows ? `<table style="margin-top:16px;text-align:left"><tr><th>Date</th><th class="num">Status</th><th class="num">Due</th></tr>${rows}</table>` : `<p class="muted" style="margin-top:16px">No games recorded yet.</p>`}
+        ${rows ? `<div class="table-scroll" style="margin-top:16px"><table style="text-align:left"><tr><th>Date</th><th class="num">Status</th><th class="num">Due</th></tr>${rows}</table></div>` : `<p class="muted" style="margin-top:16px">No games recorded yet.</p>`}
       </div>`;
   }catch(err){
     document.getElementById("content").innerHTML = `<div class="card" style="max-width:420px;margin:40px auto;text-align:center"><p class="muted">${escapeHtml(err.message)}</p></div>`;
@@ -1105,7 +1111,7 @@ function pageAdmins(fl){
   <div class="card">
     <h2 class="tab-setup">Admins on this flight</h2>
     <p class="sub">Add a colleague so someone else can manage this flight if you're unavailable. They'll be prompted to set their own PIN the first time they sign in.</p>
-    <table><tr><th>Name</th><th></th></tr>${rows || `<tr><td colspan="2" class="muted">No admins yet.</td></tr>`}</table>
+    <div class="table-scroll"><table><tr><th>Name</th><th></th></tr>${rows || `<tr><td colspan="2" class="muted">No admins yet.</td></tr>`}</table></div>
   </div>
   <div class="card">
     <h2 class="tab-setup">Add an admin</h2>
@@ -1213,8 +1219,8 @@ function pageSetup(fl){
       <input id="newMemberPhone" placeholder="Phone incl. country code" style="width:190px">
       <button class="primary" onclick="addMember()">Add member</button>
     </div>
-    <table><tr><th style="width:40px">#</th><th>Name</th><th>Status</th><th class="num">Outstanding</th><th></th></tr>
-      ${rows || `<tr><td colspan="5" class="muted">No members yet — add the first one above.</td></tr>`}</table>
+    <div class="table-scroll"><table><tr><th style="width:40px">#</th><th>Name</th><th>Status</th><th class="num">Outstanding</th><th></th></tr>
+      ${rows || `<tr><td colspan="5" class="muted">No members yet — add the first one above.</td></tr>`}</table></div>
     ${fl.members.length ? `<div class="row" style="margin-top:14px">
       <button class="danger" onclick="clearAllMembers()">Remove all members</button>
     </div>` : ""}
@@ -1342,8 +1348,6 @@ async function clearAllSessions(){
   }catch(err){ toast(err.message); }
 }
 
-// Opens the player's public summary page (played days + arrears) directly
-// in a new tab, and also copies the link so it can be shared elsewhere.
 function copyPlayerLink(token, name){
   const url = `${location.origin}/?p=${token}`;
   navigator.clipboard.writeText(url).catch(() => {});
@@ -1413,8 +1417,8 @@ function pageSession(fl){
     </p>
   </div>
   <div class="card"><h2 class="tab-session">Recent games</h2>
-    <table><tr><th>Date</th><th class="num">Shuttles</th><th class="num">Present</th><th class="num">Day cost</th><th class="num">Each share</th><th></th></tr>
-      ${recent || `<tr><td colspan="6" class="muted">No games saved yet.</td></tr>`}</table>
+    <div class="table-scroll"><table><tr><th>Date</th><th class="num">Shuttles</th><th class="num">Present</th><th class="num">Day cost</th><th class="num">Each share</th><th></th></tr>
+      ${recent || `<tr><td colspan="6" class="muted">No games saved yet.</td></tr>`}</table></div>
   </div>`;
 }
 
@@ -1669,7 +1673,7 @@ function pageReport(fl){
   <div class="card">
     <h2 class="tab-report" style="text-align:center;font-size:19px">${escapeHtml(fl.flightName)} — Shuttle Cost Sheet</h2>
     <p class="sub" style="text-align:center">${title}${fl.currentAdmin ? ` · Printed by ${escapeHtml(fl.currentAdmin.name)}` : ""}</p>
-    ${sessions.length ? `<div style="overflow-x:auto"><table class="report"><thead>
+    ${sessions.length ? `<div class="table-scroll"><table class="report"><thead>
       <tr><th rowspan="2" style="width:38px">S.No</th><th rowspan="2">Name</th>${header}
         <th rowspan="8" style="width:100px;color:#3a2b00">Amount<br>to Pay</th></tr>
       <tr>${sessions.map(()=>`<th></th><th></th>`).join("")}</tr></thead>
