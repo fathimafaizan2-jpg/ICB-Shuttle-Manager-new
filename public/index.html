@@ -16,13 +16,13 @@
 :root{
   --navy:#1c3766; --navy-deep:#122449; --gold:#f4b400; --gold-deep:#c98f00;
   --court:#0e9469; --court-deep:#0a6b4c; --coral:#e63946; --coral-deep:#a3222c;
-  --bg:#eef1f7; --card:#ffffff; --line:#e2e6ef; --text:#1a2332; --muted:#64708a;
+  --bg:#f6f1e4; --card:#fffdf8; --line:#e6ddc9; --text:#241f16; --muted:#7a7261;
   --peach:#fde8dc; --wa:#25D366; --wa-deep:#128c43;
 }
 *{box-sizing:border-box;}
 body{
   margin:0; font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  background:#d7dbe6; color:var(--text); display:flex; justify-content:center; min-height:100vh;
+  background:#e3dac7; color:var(--text); display:flex; justify-content:center; min-height:100vh;
 }
 h1,h2,.brand-font{ font-family:'Poppins','Inter',sans-serif; }
 
@@ -68,13 +68,13 @@ input:focus,select:focus{outline:none;border-color:var(--court);box-shadow:0 0 0
 button{
   cursor:pointer; border:none; border-radius:10px; padding:10px 16px;
   font-weight:600; font-size:14px;
-  background:linear-gradient(180deg,#ffffff,#eef1f6);
+  background:linear-gradient(180deg,#ffffff,#f3eee0);
   color:var(--navy);
-  box-shadow:0 3px 0 #c7cede, 0 4px 10px rgba(20,30,60,.10);
+  box-shadow:0 3px 0 #d8cdb0, 0 4px 10px rgba(20,30,60,.10);
   transition:transform .08s ease, box-shadow .08s ease;
 }
 button:hover{filter:brightness(1.03);}
-button:active{transform:translateY(2px);box-shadow:0 1px 0 #c7cede, 0 2px 4px rgba(20,30,60,.10);}
+button:active{transform:translateY(2px);box-shadow:0 1px 0 #d8cdb0, 0 2px 4px rgba(20,30,60,.10);}
 button:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;}
 
 button.primary{
@@ -101,7 +101,7 @@ button.ghost:active{transform:none;background:rgba(255,255,255,.16);}
 button.link-btn{background:none;box-shadow:none;padding:4px 6px;color:var(--court);font-weight:600;text-decoration:underline;}
 button.link-btn:active{transform:none;}
 button.icon-btn{padding:8px 10px;flex-shrink:0;font-size:15px;line-height:1;}
-button.back-btn{background:#eef1f6;color:var(--navy);font-weight:700;}
+button.back-btn{background:#f1ebd9;color:var(--navy);font-weight:700;}
 
 /* ============== TOP NAVIGATION — 3D icon buttons ============== */
 .app-body{display:flex;flex-direction:column;flex:1;width:100%;}
@@ -129,7 +129,7 @@ nav button.active[data-tab="ownerLogs"]{background:linear-gradient(180deg,#b39cf
 main{flex:1;min-width:0;padding:4px 14px 40px;width:100%;}
 .card{
   background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:14px;
-  box-shadow:0 2px 6px rgba(20,30,60,.05), 0 10px 28px rgba(20,30,60,.05);
+  box-shadow:0 2px 6px rgba(60,50,20,.05), 0 10px 28px rgba(60,50,20,.05);
 }
 .card h2{margin:0 0 4px;font-size:16px;color:var(--navy);font-weight:700;}
 .card h2.tab-session{color:var(--court-deep);}
@@ -177,7 +177,7 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
   display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;
   cursor:pointer;border:1.5px solid var(--line);background:#fff;transition:all .12s ease;
 }
-.member-row:hover{border-color:#c7cede;transform:translateY(-1px);box-shadow:0 3px 8px rgba(20,30,60,.08);}
+.member-row:hover{border-color:#d8cdb0;transform:translateY(-1px);box-shadow:0 3px 8px rgba(60,50,20,.08);}
 .member-row.on{background:#e6f8f0;border-color:var(--court);box-shadow:0 2px 0 var(--court-deep);}
 .avatar{
   width:38px;height:38px;border-radius:50%;
@@ -188,15 +188,15 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 .member-info{flex:1;min-width:0;}
 .member-name{font-weight:600;font-size:14px;}
 .member-owed{font-size:11px;color:var(--coral-deep);font-weight:700;}
-.switch{width:44px;height:25px;border-radius:20px;background:#d8dce6;position:relative;flex-shrink:0;transition:background .15s;}
+.switch{width:44px;height:25px;border-radius:20px;background:#e2d9c4;position:relative;flex-shrink:0;transition:background .15s;}
 .switch.on{background:var(--court);}
 .switch .knob{width:19px;height:19px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.25);}
 .switch.on .knob{left:22px;}
 .present-counter{font-size:13px;color:var(--muted);margin-bottom:10px;font-weight:600;}
 
 .summary{
-  background:linear-gradient(135deg,#f0f4fa,#e7ecf7); border:1px solid var(--line); border-radius:14px; padding:16px;
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;
+  background:linear-gradient(135deg,#faf5e9,#efe6d1); border:1px solid var(--line); border-radius:14px; padding:16px;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:12px;
 }
 .summary div span{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.4px;}
 .summary div strong{font-size:18px;color:var(--navy);font-family:'Poppins',sans-serif;}
@@ -208,9 +208,9 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 .paid-checkbox-label input{width:20px;height:20px;accent-color:var(--court);cursor:pointer;}
 
 .report{border-collapse:collapse;width:100%;font-size:12px;}
-.report th,.report td{border:1px solid #ccd3e2;padding:6px 8px;}
+.report th,.report td{border:1px solid #d8cdb0;padding:6px 8px;}
 .report thead th{background:var(--navy);color:#fff;text-align:center;font-size:12px;}
-.report .metric td{background:#f6f7fb;font-weight:600;}
+.report .metric td{background:#f7f2e6;font-weight:600;}
 .report .shr{background:var(--peach);text-align:right;font-variant-numeric:tabular-nums;}
 .report .pmark{text-align:center;font-weight:700;color:var(--court-deep);}
 .report .amark{text-align:center;font-weight:700;color:var(--coral-deep);}
@@ -226,14 +226,18 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 
 .flight-row{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;border-bottom:1px solid var(--line);cursor:pointer;}
 .flight-row:last-child{border-bottom:none;}
-.flight-row:hover{background:#f6f8fb;}
+.flight-row:hover{background:#f7f2e6;}
 .flight-row-name{font-weight:700;color:var(--navy);font-family:'Poppins',sans-serif;}
 .flight-card-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
 .flight-card-name{font-weight:800;font-size:16px;font-family:'Poppins',sans-serif;color:var(--navy);}
 .flight-card-line{font-size:12px;color:var(--muted);margin:3px 0;}
 .menu-bar{display:flex;flex-wrap:wrap;gap:8px;}
 
-footer{text-align:center;padding:16px;color:var(--muted);font-size:11px;border-top:1px solid var(--line);background:#fff;}
+.member-admin-card{border:1.5px solid var(--line);border-radius:13px;padding:13px;margin-bottom:9px;background:#fff;}
+.member-admin-card .actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.member-admin-card .actions button{padding:7px 11px;font-size:12.5px;}
+
+footer{text-align:center;padding:16px;color:var(--muted);font-size:11px;border-top:1px solid var(--line);background:var(--card);}
 footer strong{color:var(--navy);}
 
 @media print{
@@ -438,6 +442,9 @@ function inDateRange(dateStr, from, to){
   if(to && dateStr > to) return false;
   return true;
 }
+function isPaymentAction(action){
+  return action.startsWith("Recorded payment") || action.startsWith("Settled all outstanding") || action.startsWith("Undid a payment settlement");
+}
 
 function confirmScoped(message, word){
   if(!confirm(message)) return false;
@@ -462,15 +469,28 @@ function toggleEye(id, btn){
 }
 
 /* Captures a section of the page as a PNG and hands it to the phone's
-   native Share sheet (WhatsApp shows up there as one option among
-   others) — or downloads it on desktops that don't support file sharing. */
+   native Share sheet. Temporarily disables horizontal table scrolling and
+   asks html2canvas to render the element's FULL size (not just whatever is
+   currently visible in the viewport) so long/scrolled tables aren't cut off. */
 async function shareScreenshot(elementId, filename, shareText){
   const el = document.getElementById(elementId);
   if(!el){ toast("Nothing to capture."); return; }
   if(typeof html2canvas === "undefined"){ toast("Screenshot tool didn't load — check your connection."); return; }
   toast("Preparing screenshot…");
+
+  const scrollers = el.querySelectorAll(".table-scroll");
+  const prevCss = [];
+  scrollers.forEach(s => { prevCss.push(s.style.cssText); s.style.overflow = "visible"; });
+
   try{
-    const canvas = await html2canvas(el, { backgroundColor: "#ffffff", scale: 2 });
+    const canvas = await html2canvas(el, {
+      backgroundColor: "#fffdf8",
+      scale: 2,
+      scrollX: -window.scrollX,
+      scrollY: -window.scrollY,
+      windowWidth: document.documentElement.scrollWidth,
+      windowHeight: document.documentElement.scrollHeight
+    });
     canvas.toBlob(async (blob) => {
       if(!blob){ toast("Couldn't create the image."); return; }
       const file = new File([blob], filename, { type: "image/png" });
@@ -488,71 +508,105 @@ async function shareScreenshot(elementId, filename, shareText){
     }, "image/png");
   }catch(err){
     toast("Couldn't capture the screenshot.");
+  }finally{
+    scrollers.forEach((s,i) => { s.style.cssText = prevCss[i]; });
   }
 }
 
-/* Logs date-range filter — shared by the flight's own Logs tab and
-   Super Admin's per-flight logs view. */
+/* ===================================================================
+   LOGS — shared date-range + category filter, used by the flight's own
+   Logs tab AND Super Admin's per-flight logs view.
+   =================================================================== */
 let LOG_FROM = "";
 let LOG_TO = "";
+let LOG_CATEGORY = "all";
 function setLogFrom(v){ LOG_FROM = v; render(); }
 function setLogTo(v){ LOG_TO = v; render(); }
 function clearLogFilter(){ LOG_FROM = ""; LOG_TO = ""; render(); }
+function setLogCategory(cat){ LOG_CATEGORY = cat; render(); }
 
 function renderLogsHtml(sessions, auditLog, members){
-  const gameSorted = sessions.slice()
-    .filter(s => inDateRange(s.date, LOG_FROM, LOG_TO))
-    .sort((a,b) => b.date.localeCompare(a.date));
-  const activeNames = members.filter(m => m.active !== false).map(m => m.name);
-  const gameRows = gameSorted.map(s => {
-    const presentNames = s.presentIds.map(id => memberNameById(members, id));
-    const absentNames = activeNames.filter(n => !presentNames.includes(n));
-    return `<tr>
-      <td>${shortDate(s.date)}<br><span class="muted">${dayName(s.date)}</span></td>
-      <td class="num">${s.shuttlesUsed}</td>
-      <td>${presentNames.map(n=>escapeHtml(n)).join(", ") || "—"}</td>
-      <td>${absentNames.map(n=>escapeHtml(n)).join(", ") || "—"}</td>
-      <td class="num">BHD ${bhd(s.totalCostFils)}</td>
-    </tr>`;
-  }).join("");
-
+  const filteredSessions = sessions.filter(s => inDateRange(s.date, LOG_FROM, LOG_TO));
   const filteredAudit = auditLog.filter(e => inDateRange(e.ts.slice(0,10), LOG_FROM, LOG_TO));
-  const actRows = filteredAudit.map(e => `<tr>
-    <td style="white-space:nowrap;font-size:12px">${new Date(e.ts).toLocaleString()}</td>
-    <td>${escapeHtml(e.actor)}</td>
-    <td>${escapeHtml(e.action)}</td>
-  </tr>`).join("");
+  const activeNames = members.filter(m => m.active !== false).map(m => m.name);
 
-  return `
+  const cats = [["all","All"],["attendance","Attendance"],["payments","Payments"],["other","Other"]];
+  const catNav = cats.map(([id,label]) =>
+    `<button class="${LOG_CATEGORY===id?'primary':''}" onclick="setLogCategory('${id}')">${label}</button>`).join("");
+
+  let out = `
   <div class="card no-print">
-    <h2>Filter by date</h2>
-    <div class="row">
+    <h2>Filter logs</h2>
+    <div class="row" style="margin-bottom:10px">
       <div class="field"><label>From</label><input type="date" value="${LOG_FROM}" onchange="setLogFrom(this.value)"></div>
       <div class="field"><label>To</label><input type="date" value="${LOG_TO}" onchange="setLogTo(this.value)"></div>
       ${(LOG_FROM || LOG_TO) ? `<div class="field"><label>&nbsp;</label><button onclick="clearLogFilter()">Clear</button></div>` : ""}
     </div>
-  </div>
-  <div class="card">
-    <div class="row" style="justify-content:space-between;align-items:flex-start">
-      <div id="gameLogCapture" style="flex:1;min-width:0">
-        <h2>Game log</h2>
-        <p class="sub">One row per saved game. Stock shown elsewhere is current-only.</p>
-        <div class="table-scroll"><table>
-          <tr><th>Date</th><th class="num">Shuttles</th><th>Present</th><th>Absent</th><th class="num">Cost</th></tr>
-          ${gameRows || `<tr><td colspan="5" class="muted">No games in this range.</td></tr>`}
-        </table></div>
-      </div>
-      <button class="icon-btn no-print" onclick="shareScreenshot('gameLogCapture','game-log.png','Game log')" title="Share screenshot">📸</button>
-    </div>
-  </div>
-  <div class="card">
-    <h2>Activity log</h2>
-    <p class="sub">Every change made in this flight, most recent first.</p>
-    <div class="table-scroll"><table>
-      <tr><th>Time</th><th>By</th><th>What</th></tr>
-      ${actRows || `<tr><td colspan="3" class="muted">No activity in this range.</td></tr>`}
-    </table></div>
+    <div class="row">${catNav}</div>
   </div>`;
+
+  if(LOG_CATEGORY === "all" || LOG_CATEGORY === "attendance"){
+    const gameSorted = filteredSessions.slice().sort((a,b) => b.date.localeCompare(a.date));
+    const gameRows = gameSorted.map(s => {
+      const presentNames = s.presentIds.map(id => memberNameById(members, id));
+      const absentNames = activeNames.filter(n => !presentNames.includes(n));
+      return `<tr>
+        <td>${shortDate(s.date)}<br><span class="muted">${dayName(s.date)}</span></td>
+        <td class="num">${s.shuttlesUsed}</td>
+        <td>${presentNames.map(n=>escapeHtml(n)).join(", ") || "—"}</td>
+        <td>${absentNames.map(n=>escapeHtml(n)).join(", ") || "—"}</td>
+        <td class="num">BHD ${bhd(s.totalCostFils)}</td>
+      </tr>`;
+    }).join("");
+    out += `
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap">
+        <div id="gameLogCapture" style="flex:1;min-width:0">
+          <h2>Attendance / Game log</h2>
+          <p class="sub">One row per saved game. Stock shown elsewhere is current-only.</p>
+          <div class="table-scroll"><table>
+            <tr><th>Date</th><th class="num">Shuttles</th><th>Present</th><th>Absent</th><th class="num">Cost</th></tr>
+            ${gameRows || `<tr><td colspan="5" class="muted">No games in this range.</td></tr>`}
+          </table></div>
+        </div>
+        <button class="icon-btn no-print" onclick="shareScreenshot('gameLogCapture','attendance-log.png','Attendance log')" title="Share screenshot">📸</button>
+      </div>
+    </div>`;
+  }
+
+  if(LOG_CATEGORY !== "attendance"){
+    let rowsAudit = filteredAudit;
+    let heading = "Activity log";
+    let sub = "Every change made in this flight, most recent first.";
+    if(LOG_CATEGORY === "payments"){
+      rowsAudit = filteredAudit.filter(e => isPaymentAction(e.action));
+      heading = "Payment logs"; sub = "Payments recorded and settlements, most recent first.";
+    } else if(LOG_CATEGORY === "other"){
+      rowsAudit = filteredAudit.filter(e => !isPaymentAction(e.action));
+      heading = "Other activity"; sub = "Everything except payments, most recent first.";
+    }
+    const actRows = rowsAudit.map(e => `<tr>
+      <td style="white-space:nowrap;font-size:12px">${new Date(e.ts).toLocaleString()}</td>
+      <td>${escapeHtml(e.actor)}</td>
+      <td>${escapeHtml(e.action)}</td>
+    </tr>`).join("");
+    out += `
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap">
+        <div id="activityLogCapture" style="flex:1;min-width:0">
+          <h2>${heading}</h2>
+          <p class="sub">${sub}</p>
+          <div class="table-scroll"><table>
+            <tr><th>Time</th><th>By</th><th>What</th></tr>
+            ${actRows || `<tr><td colspan="3" class="muted">Nothing in this range.</td></tr>`}
+          </table></div>
+        </div>
+        <button class="icon-btn no-print" onclick="shareScreenshot('activityLogCapture','${LOG_CATEGORY}-log.png','${heading}')" title="Share screenshot">📸</button>
+      </div>
+    </div>`;
+  }
+
+  return out;
 }
 
 /* ===================================================================
@@ -894,7 +948,7 @@ let OWNER_LOG_FLIGHT = null;
 
 function viewFlightLogs(encodedName){
   OWNER_LOG_FLIGHT = decodeURIComponent(encodedName);
-  LOG_FROM = ""; LOG_TO = "";
+  LOG_FROM = ""; LOG_TO = ""; LOG_CATEGORY = "all";
   STATE.page = "ownerFlightLogsSingle";
   render();
 }
@@ -1059,7 +1113,11 @@ const TABS = [
   ["setup","⚙️","Setup"]
 ];
 
-function goto(page){ STATE.page = page; if(page === "logs"){ LOG_FROM=""; LOG_TO=""; } render(); }
+function goto(page){
+  STATE.page = page;
+  if(page === "logs"){ LOG_FROM=""; LOG_TO=""; LOG_CATEGORY="all"; }
+  render();
+}
 
 async function refreshFlight(){
   STATE.fl = await api("/api/flight");
@@ -1169,19 +1227,26 @@ function pageSetup(fl){
   const perShuttle = fl.shuttlesPerTube > 0 ? pricePerShuttleFils(fl.tubePriceFils, fl.shuttlesPerTube) : 0;
   const stock = fl.shuttlesInStock || 0;
 
-  const rows = fl.members.map((m,i) => {
+  const memberCards = fl.members.map((m,i) => {
     const owed = outstandingFils(fl, m.id);
-    return `<tr>
-      <td class="num">${i+1}</td>
-      <td>${escapeHtml(m.name)}${m.phone ? `<br><span class="muted">${escapeHtml(m.phone)}</span>` : ""}</td>
-      <td>${m.active ? '<span class="badge b-paid">Active</span>' : '<span class="badge b-due">Inactive</span>'}</td>
-      <td class="num">${owed ? `<span style="color:var(--coral-deep);font-weight:700">BHD ${bhd(owed)}</span>` : "—"}</td>
-      <td class="num">
+    return `<div class="member-admin-card">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div>
+          <strong>${i+1}. ${escapeHtml(m.name)}</strong>
+          ${m.phone ? `<div class="muted" style="font-size:12px;margin-top:2px">${escapeHtml(m.phone)}</div>` : ""}
+        </div>
+        <div style="text-align:right">
+          ${m.active ? '<span class="badge b-paid">Active</span>' : '<span class="badge b-due">Inactive</span>'}
+          ${owed ? `<div style="color:var(--coral-deep);font-weight:700;font-size:12.5px;margin-top:5px">BHD ${bhd(owed)}</div>` : ""}
+        </div>
+      </div>
+      <div class="actions">
         <button onclick="toggleMember('${m.id}')">${m.active ? "Deactivate" : "Activate"}</button>
         <button onclick="editMember('${m.id}')">Edit</button>
-        <button onclick="copyPlayerLink('${m.publicToken}','${escapeHtml(m.name)}')">🔗</button>
+        <button onclick="copyPlayerLink('${m.publicToken}','${escapeHtml(m.name)}')">🔗 Link</button>
         <button class="danger" onclick="deleteMember('${m.id}')">Delete</button>
-      </td></tr>`;
+      </div>
+    </div>`;
   }).join("");
 
   return `
@@ -1239,9 +1304,8 @@ function pageSetup(fl){
       <input id="newMemberPhone" placeholder="Phone incl. country code" style="width:100%">
       <button class="primary" style="width:100%" onclick="addMember()">Add member</button>
     </div>
-    <div class="table-scroll"><table><tr><th style="width:40px">#</th><th>Name</th><th>Status</th><th class="num">Owes</th><th></th></tr>
-      ${rows || `<tr><td colspan="5" class="muted">No members yet — add the first one above.</td></tr>`}</table></div>
-    ${fl.members.length ? `<div class="row" style="margin-top:14px">
+    ${memberCards || `<p class="muted">No members yet — add the first one above.</p>`}
+    ${fl.members.length ? `<div class="row" style="margin-top:6px">
       <button class="danger" onclick="clearAllMembers()">Remove all members</button>
     </div>` : ""}
   </div>
@@ -1547,8 +1611,11 @@ function deleteSession(id){
 }
 
 /* ===================================================================
-   TAB — PAYMENTS
+   TAB — PAYMENTS (Owing / Settled)
    =================================================================== */
+let PAYMENTS_VIEW = "owing";
+function setPaymentsView(v){ PAYMENTS_VIEW = v; render(); }
+
 function agingBadge(days){
   if(days >= 30) return `<span class="badge b-critical">${days}d overdue</span>`;
   if(days >= 14) return `<span class="badge b-warn">${days}d overdue</span>`;
@@ -1559,9 +1626,41 @@ function pagePayments(fl){
   const withCharges = fl.members.filter(m => fl.sessions.some(s => s.shares[m.id]));
   if(!withCharges.length) return `<div class="card"><h2 class="tab-payments">Nothing to collect yet</h2></div>`;
 
-  const totalOwed = withCharges.reduce((sum,m) => sum + outstandingFils(fl, m.id), 0);
+  const owingMembers = withCharges.filter(m => outstandingFils(fl, m.id) > 0);
+  const settledMembers = withCharges.filter(m => outstandingFils(fl, m.id) === 0);
+  const totalOwed = owingMembers.reduce((sum,m) => sum + outstandingFils(fl, m.id), 0);
 
-  const rows = withCharges.map(m => {
+  const header = `
+  <div class="card"><h2 class="tab-payments">Payments</h2>
+    <p class="sub">Tick "Paid" once a player has settled that game in full. "Settle all" clears everything for a player at once.</p>
+    <div class="summary" style="margin-bottom:14px">
+      <div><span>Total owed</span><strong style="color:var(--coral-deep)">BHD ${bhd(totalOwed)}</strong></div>
+      <div><span>Owing</span><strong>${owingMembers.length}</strong></div>
+      <div><span>Settled</span><strong>${settledMembers.length}</strong></div>
+    </div>
+    <div class="row">
+      <button class="${PAYMENTS_VIEW==='owing'?'primary':''}" onclick="setPaymentsView('owing')">Owing (${owingMembers.length})</button>
+      <button class="${PAYMENTS_VIEW==='settled'?'primary':''}" onclick="setPaymentsView('settled')">Settled (${settledMembers.length})</button>
+    </div>
+  </div>`;
+
+  if(PAYMENTS_VIEW === "settled"){
+    const rows = settledMembers.map(m => {
+      const total = fl.sessions.reduce((sum,s) => sum + (s.shares[m.id]||0), 0);
+      return `<div class="card" style="margin-bottom:10px">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <div>
+            <strong>${escapeHtml(m.name)}</strong>
+            <div class="muted" style="font-size:12px">Paid in full · BHD ${bhd(total)} total</div>
+          </div>
+          <button onclick="undoSettleFromSettledTab('${m.id}')">↩ Undo</button>
+        </div>
+      </div>`;
+    }).join("");
+    return header + (rows || `<div class="card"><p class="muted">No one is fully settled yet.</p></div>`);
+  }
+
+  const rows = owingMembers.map(m => {
     const owed = outstandingFils(fl, m.id);
     const unpaid = fl.sessions.filter(s => {
       const share = s.shares[m.id];
@@ -1592,24 +1691,15 @@ function pagePayments(fl){
       <div class="row" style="justify-content:space-between;margin-bottom:${unpaid.length?"6px":"0"}">
         <h2 style="margin:0;font-size:15px">${escapeHtml(m.name)}</h2>
         <div class="row">
-          <strong style="color:${owed?"var(--coral-deep)":"var(--court-deep)"};font-size:15px;font-family:'Poppins',sans-serif">BHD ${bhd(owed)}</strong>
-          ${owed ? `<button class="primary" onclick="settleAll('${m.id}')">Settle all</button>` : `<span class="badge b-paid">Settled</span>`}
+          <strong style="color:var(--coral-deep);font-size:15px;font-family:'Poppins',sans-serif">BHD ${bhd(owed)}</strong>
+          <button class="primary" onclick="settleAll('${m.id}')">Settle all</button>
         </div>
       </div>
       ${gameLines}
     </div>`;
   }).join("");
 
-  return `
-  <div class="card"><h2 class="tab-payments">Who still owes</h2>
-    <p class="sub">Tick "Paid" once a player has settled that game in full. "Settle all" clears everything for a player at once. Both can be undone for a few seconds right after.</p>
-    <div class="summary" style="margin-bottom:16px">
-      <div><span>Total owed</span><strong style="color:var(--coral-deep)">BHD ${bhd(totalOwed)}</strong></div>
-      <div><span>Owing</span><strong>${withCharges.filter(m => outstandingFils(fl,m.id)>0).length}</strong></div>
-      <div><span>Games</span><strong>${fl.sessions.length}</strong></div>
-    </div>
-  </div>
-  ${rows}`;
+  return header + rows;
 }
 
 async function markPaidCheckbox(checkbox, sessionId, memberId, remainingFils, priorAmount){
@@ -1648,6 +1738,29 @@ async function settleAll(memberId){
         STATE.fl = await api("/api/payments/restore", { method:"POST", body: JSON.stringify({ entries: priorEntries }) });
         render();
         toast("Undone.");
+      }catch(err){ toast(err.message); }
+    });
+  }catch(err){ toast(err.message); }
+}
+
+// Called from the Settled tab — instantly reopens all of this member's
+// charges as unpaid, no confirmation popup. A 5-second Undo bar follows,
+// so a mis-tap can still be reversed right away.
+async function undoSettleFromSettledTab(memberId){
+  const m = STATE.fl.members.find(x => x.id===memberId);
+  const priorEntries = STATE.fl.sessions
+    .filter(s => s.shares[memberId])
+    .map(s => ({ sessionId: s.id, memberId, amount: paidAmountFor(STATE.fl, `${s.id}_${memberId}`, s.shares[memberId]) }));
+  const resetEntries = priorEntries.map(e => ({ ...e, amount: 0 }));
+
+  try{
+    STATE.fl = await api("/api/payments/restore", { method:"POST", body: JSON.stringify({ entries: resetEntries }) });
+    render();
+    showUndoBar(`${m.name} marked unpaid again.`, async () => {
+      try{
+        STATE.fl = await api("/api/payments/restore", { method:"POST", body: JSON.stringify({ entries: priorEntries }) });
+        render();
+        toast("Restored as settled.");
       }catch(err){ toast(err.message); }
     });
   }catch(err){ toast(err.message); }
