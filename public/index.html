@@ -22,9 +22,18 @@
 *{box-sizing:border-box;}
 body{
   margin:0; font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  background:var(--bg); color:var(--text); display:flex; flex-direction:column; min-height:100vh;
+  background:#d7dbe6; color:var(--text); display:flex; justify-content:center; min-height:100vh;
 }
 h1,h2,.brand-font{ font-family:'Poppins','Inter',sans-serif; }
+
+/* Fixed phone-width shell — the whole app lives inside this at every screen size */
+.app-shell{
+  width:100%; max-width:480px;
+  background:var(--bg);
+  display:flex; flex-direction:column;
+  min-height:100vh;
+  box-shadow:0 0 30px rgba(0,0,0,.10);
+}
 
 #loadingBar{
   position:fixed;top:14px;left:50%;transform:translateX(-50%);
@@ -38,19 +47,19 @@ h1,h2,.brand-font{ font-family:'Poppins','Inter',sans-serif; }
 
 header{
   background:linear-gradient(135deg,var(--navy),var(--navy-deep));
-  color:#fff; padding:16px 22px;
+  color:#fff; padding:14px 18px;
   display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
   box-shadow:0 4px 14px rgba(0,0,0,.15);
 }
-header .brand{display:flex;align-items:center;gap:12px;}
+header .brand{display:flex;align-items:center;gap:10px;}
 header .logo{
-  width:40px;height:40px;border-radius:12px;
+  width:36px;height:36px;border-radius:11px;
   background:linear-gradient(160deg,var(--gold),var(--gold-deep));
-  display:flex;align-items:center;justify-content:center;font-size:20px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
   box-shadow:0 3px 0 #8a6400, 0 4px 10px rgba(0,0,0,.25);
 }
-header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px;}
-header .sub{font-size:13px;color:#c9d2e6;font-weight:500;}
+header h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px;}
+header .sub{font-size:12px;color:#c9d2e6;font-weight:500;}
 
 select,button,input{font-family:'Inter',sans-serif;font-size:14px;}
 input,select{padding:9px 11px;border:1.5px solid var(--line);border-radius:9px;background:#fff;}
@@ -87,60 +96,42 @@ button.wa{
 button.wa:active{box-shadow:0 1px 0 var(--wa-deep);}
 
 button.big{padding:14px 22px;font-size:16px;}
-button.ghost{background:rgba(255,255,255,.08);color:#e6ecf7;box-shadow:none;border:1.5px solid rgba(255,255,255,.28);}
+button.ghost{background:rgba(255,255,255,.08);color:#e6ecf7;box-shadow:none;border:1.5px solid rgba(255,255,255,.28);padding:8px 12px;font-size:13px;}
 button.ghost:active{transform:none;background:rgba(255,255,255,.16);}
 button.link-btn{background:none;box-shadow:none;padding:4px 6px;color:var(--court);font-weight:600;text-decoration:underline;}
 button.link-btn:active{transform:none;}
-button.eye-btn{padding:8px 12px;flex-shrink:0;}
+button.icon-btn{padding:8px 10px;flex-shrink:0;font-size:15px;line-height:1;}
 button.back-btn{background:#eef1f6;color:var(--navy);font-weight:700;}
 
-/* ============== SIDE NAVIGATION (light) ============== */
-.app-body{display:flex;align-items:flex-start;width:100%;flex:1;}
+/* ============== TOP NAVIGATION — 3D icon buttons ============== */
+.app-body{display:flex;flex-direction:column;flex:1;width:100%;}
 nav{
-  display:flex;flex-direction:column;gap:4px;
-  background:var(--card);
-  padding:14px 8px;
-  width:150px;flex-shrink:0;
-  min-height:calc(100vh - 73px);
-  border-right:1px solid var(--line);
-  box-shadow:2px 0 10px rgba(20,30,60,.03);
+  display:flex; gap:7px; background:transparent;
+  padding:10px 12px; overflow-x:auto; -webkit-overflow-scrolling:touch;
 }
 nav button{
-  background:transparent; color:#4a5a80; border:none; border-radius:9px; box-shadow:none;
-  padding:11px 10px; border-left:3px solid transparent;
+  flex:0 0 auto; min-width:56px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  padding:9px 6px; border-radius:13px;
   font-family:'Poppins',sans-serif;
-  display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:2px;
-  width:100%; text-align:left;
 }
-nav button .nav-num{font-size:10px;font-weight:700;opacity:.65;letter-spacing:.5px;}
-nav button .nav-label{font-size:12.5px;font-weight:700;line-height:1.2;}
-nav button:hover{background:#f2f4f9;transform:none;}
-nav button:active{transform:none;}
-nav button.active[data-tab="session"]{background:#e6f8f0;border-left-color:var(--court);color:var(--court-deep);}
-nav button.active[data-tab="payments"]{background:#fce4e2;border-left-color:var(--coral);color:var(--coral-deep);}
-nav button.active[data-tab="report"]{background:#fdeecb;border-left-color:var(--gold);color:var(--gold-deep);}
-nav button.active[data-tab="logs"]{background:#f1ecfe;border-left-color:#a78bfa;color:#6d47d1;}
-nav button.active[data-tab="admins"]{background:#e6f4fd;border-left-color:#38bdf8;color:#0f76a8;}
-nav button.active[data-tab="setup"]{background:#eaf0ff;border-left-color:#7ea6ff;color:#2451a8;}
-nav button.active[data-tab="ownerDashboard"]{background:#fdeecb;border-left-color:var(--gold);color:var(--gold-deep);}
-nav button.active[data-tab="ownerLogs"]{background:#f1ecfe;border-left-color:#a78bfa;color:#6d47d1;}
-@media(max-width:700px){
-  nav{width:78px;padding:12px 4px;}
-  nav button{padding:9px 4px;align-items:center;text-align:center;}
-  nav button .nav-label{font-size:9.5px;text-align:center;}
-  nav button .nav-num{font-size:8.5px;}
-}
-@media(max-width:420px){
-  nav{width:64px;}
-  nav button .nav-label{font-size:8.5px;}
-}
+nav button .nav-icon{font-size:19px;line-height:1;}
+nav button .nav-label{font-size:9.5px;font-weight:700;letter-spacing:.1px;}
+nav button.active[data-tab="session"]{background:linear-gradient(180deg,#22b17c,var(--court));color:#fff;box-shadow:0 3px 0 var(--court-deep), 0 4px 10px rgba(14,148,105,.3);}
+nav button.active[data-tab="payments"]{background:linear-gradient(180deg,#ee5a4d,var(--coral));color:#fff;box-shadow:0 3px 0 var(--coral-deep), 0 4px 10px rgba(230,57,70,.3);}
+nav button.active[data-tab="report"]{background:linear-gradient(180deg,#ffcc33,var(--gold));color:#3a2b00;box-shadow:0 3px 0 var(--gold-deep), 0 4px 10px rgba(201,143,0,.3);}
+nav button.active[data-tab="logs"]{background:linear-gradient(180deg,#b39cfa,#8b5cf6);color:#fff;box-shadow:0 3px 0 #6d47d1, 0 4px 10px rgba(139,92,246,.3);}
+nav button.active[data-tab="admins"]{background:linear-gradient(180deg,#5fd0fb,#38bdf8);color:#fff;box-shadow:0 3px 0 #0f76a8, 0 4px 10px rgba(56,189,248,.3);}
+nav button.active[data-tab="setup"]{background:linear-gradient(180deg,#9fbcff,#7ea6ff);color:#12275c;box-shadow:0 3px 0 #2451a8, 0 4px 10px rgba(126,166,255,.3);}
+nav button.active[data-tab="ownerDashboard"]{background:linear-gradient(180deg,#ffcc33,var(--gold));color:#3a2b00;box-shadow:0 3px 0 var(--gold-deep);}
+nav button.active[data-tab="ownerLogs"]{background:linear-gradient(180deg,#b39cfa,#8b5cf6);color:#fff;box-shadow:0 3px 0 #6d47d1;}
 
-main{flex:1;min-width:0;margin:20px auto;max-width:1000px;padding:0 18px 44px;width:100%;}
+main{flex:1;min-width:0;padding:4px 14px 40px;width:100%;}
 .card{
-  background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:16px;
+  background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:14px;
   box-shadow:0 2px 6px rgba(20,30,60,.05), 0 10px 28px rgba(20,30,60,.05);
 }
-.card h2{margin:0 0 4px;font-size:17px;color:var(--navy);font-weight:700;}
+.card h2{margin:0 0 4px;font-size:16px;color:var(--navy);font-weight:700;}
 .card h2.tab-session{color:var(--court-deep);}
 .card h2.tab-payments{color:var(--coral-deep);}
 .card h2.tab-report{color:var(--gold-deep);}
@@ -149,8 +140,7 @@ main{flex:1;min-width:0;margin:20px auto;max-width:1000px;padding:0 18px 44px;wi
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
 .field{display:flex;flex-direction:column;gap:5px;}
 .field label{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.3px;}
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
-@media(max-width:800px){.two-col{grid-template-columns:1fr;}}
+.two-col{display:grid;grid-template-columns:1fr;gap:14px;align-items:start;}
 
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);}
@@ -206,10 +196,10 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 
 .summary{
   background:linear-gradient(135deg,#f0f4fa,#e7ecf7); border:1px solid var(--line); border-radius:14px; padding:16px;
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;
 }
-.summary div span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.4px;}
-.summary div strong{font-size:20px;color:var(--navy);font-family:'Poppins',sans-serif;}
+.summary div span{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.4px;}
+.summary div strong{font-size:18px;color:var(--navy);font-family:'Poppins',sans-serif;}
 
 .payline{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;}
 .payline:last-child{border-bottom:none;}
@@ -231,7 +221,7 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 .danger-zone h2{color:var(--coral-deep);}
 .zone-warn{border:1.5px solid var(--gold);background:#fffaf0;}
 .zone-warn h2{color:var(--gold-deep);}
-.gate{max-width:400px;margin:70px auto;text-align:center;}
+.gate{max-width:400px;margin:50px auto;text-align:center;}
 .gate .pin-input{font-size:26px;letter-spacing:12px;text-align:center;width:100%;margin:16px 0;font-weight:700;}
 
 .flight-row{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;border-bottom:1px solid var(--line);cursor:pointer;}
@@ -243,35 +233,38 @@ th{color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;le
 .flight-card-line{font-size:12px;color:var(--muted);margin:3px 0;}
 .menu-bar{display:flex;flex-wrap:wrap;gap:8px;}
 
-footer{text-align:center;padding:18px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);background:#fff;}
+footer{text-align:center;padding:16px;color:var(--muted);font-size:11px;border-top:1px solid var(--line);background:#fff;}
 footer strong{color:var(--navy);}
 
 @media print{
   .no-print{display:none!important;}
   body{background:#fff;}
-  main{max-width:none;margin:0;padding:0;}
+  .app-shell{max-width:none;box-shadow:none;}
+  main{padding:0;}
   .card{border:none;padding:0;box-shadow:none;}
 }
 </style>
 </head>
 <body>
-<div id="loadingBar"><div class="loading-spinner"></div><span>Please wait…</span></div>
+<div class="app-shell">
+  <div id="loadingBar"><div class="loading-spinner"></div><span>Please wait…</span></div>
 
-<header class="no-print">
-  <div class="brand">
-    <div class="logo">🏸</div>
-    <div>
-      <h1 id="hdrTitle">ICB Shuttle Manager</h1>
-      <div class="sub" id="hdrSub"></div>
+  <header class="no-print">
+    <div class="brand">
+      <div class="logo">🏸</div>
+      <div>
+        <h1 id="hdrTitle">ICB Shuttle Manager</h1>
+        <div class="sub" id="hdrSub"></div>
+      </div>
     </div>
+    <div id="hdrActions"></div>
+  </header>
+  <div class="app-body">
+    <nav id="navBar" class="no-print"></nav>
+    <main id="content"></main>
   </div>
-  <div id="hdrActions"></div>
-</header>
-<div class="app-body">
-  <nav id="navBar" class="no-print"></nav>
-  <main id="content"></main>
+  <footer>Powered by <strong>A1 Technologies</strong></footer>
 </div>
-<footer>Powered by <strong>A1 Technologies</strong></footer>
 <div class="toast" id="toast"></div>
 <div class="undo-bar" id="undoBar"></div>
 
@@ -440,6 +433,11 @@ function memberNameById(members, id){
   const m = members.find(x => x.id === id);
   return m ? m.name : "Unknown";
 }
+function inDateRange(dateStr, from, to){
+  if(from && dateStr < from) return false;
+  if(to && dateStr > to) return false;
+  return true;
+}
 
 function confirmScoped(message, word){
   if(!confirm(message)) return false;
@@ -454,7 +452,7 @@ function pinField(id, placeholder, opts = {}){
   const style = opts.style || "flex:1;min-width:0";
   return `<div class="row" style="gap:6px">
     <input class="${cls}" id="${id}" type="password" inputmode="${opts.numeric===false?'text':'numeric'}" maxlength="${opts.maxlength||6}" placeholder="${placeholder}" autocomplete="off" autocorrect="off" spellcheck="false" style="${style}">
-    <button type="button" class="eye-btn" onclick="toggleEye('${id}', this)">👁</button>
+    <button type="button" class="icon-btn" onclick="toggleEye('${id}', this)">👁</button>
   </div>`;
 }
 function toggleEye(id, btn){
@@ -493,8 +491,18 @@ async function shareScreenshot(elementId, filename, shareText){
   }
 }
 
+/* Logs date-range filter — shared by the flight's own Logs tab and
+   Super Admin's per-flight logs view. */
+let LOG_FROM = "";
+let LOG_TO = "";
+function setLogFrom(v){ LOG_FROM = v; render(); }
+function setLogTo(v){ LOG_TO = v; render(); }
+function clearLogFilter(){ LOG_FROM = ""; LOG_TO = ""; render(); }
+
 function renderLogsHtml(sessions, auditLog, members){
-  const gameSorted = sessions.slice().sort((a,b) => b.date.localeCompare(a.date));
+  const gameSorted = sessions.slice()
+    .filter(s => inDateRange(s.date, LOG_FROM, LOG_TO))
+    .sort((a,b) => b.date.localeCompare(a.date));
   const activeNames = members.filter(m => m.active !== false).map(m => m.name);
   const gameRows = gameSorted.map(s => {
     const presentNames = s.presentIds.map(id => memberNameById(members, id));
@@ -508,30 +516,41 @@ function renderLogsHtml(sessions, auditLog, members){
     </tr>`;
   }).join("");
 
-  const actRows = auditLog.map(e => `<tr>
+  const filteredAudit = auditLog.filter(e => inDateRange(e.ts.slice(0,10), LOG_FROM, LOG_TO));
+  const actRows = filteredAudit.map(e => `<tr>
     <td style="white-space:nowrap;font-size:12px">${new Date(e.ts).toLocaleString()}</td>
     <td>${escapeHtml(e.actor)}</td>
     <td>${escapeHtml(e.action)}</td>
   </tr>`).join("");
 
   return `
-  <div class="card" id="gameLogCapture">
-    <div class="row" style="justify-content:space-between">
-      <h2>Game log</h2>
-      <button class="wa no-print" onclick="shareScreenshot('gameLogCapture','game-log.png','Game log')">📸 Share screenshot</button>
+  <div class="card no-print">
+    <h2>Filter by date</h2>
+    <div class="row">
+      <div class="field"><label>From</label><input type="date" value="${LOG_FROM}" onchange="setLogFrom(this.value)"></div>
+      <div class="field"><label>To</label><input type="date" value="${LOG_TO}" onchange="setLogTo(this.value)"></div>
+      ${(LOG_FROM || LOG_TO) ? `<div class="field"><label>&nbsp;</label><button onclick="clearLogFilter()">Clear</button></div>` : ""}
     </div>
-    <p class="sub">One row per saved game. Stock shown elsewhere is current-only.</p>
-    <div class="table-scroll"><table>
-      <tr><th>Date</th><th class="num">Shuttles</th><th>Present</th><th>Absent</th><th class="num">Cost</th></tr>
-      ${gameRows || `<tr><td colspan="5" class="muted">No games recorded yet.</td></tr>`}
-    </table></div>
+  </div>
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div id="gameLogCapture" style="flex:1;min-width:0">
+        <h2>Game log</h2>
+        <p class="sub">One row per saved game. Stock shown elsewhere is current-only.</p>
+        <div class="table-scroll"><table>
+          <tr><th>Date</th><th class="num">Shuttles</th><th>Present</th><th>Absent</th><th class="num">Cost</th></tr>
+          ${gameRows || `<tr><td colspan="5" class="muted">No games in this range.</td></tr>`}
+        </table></div>
+      </div>
+      <button class="icon-btn no-print" onclick="shareScreenshot('gameLogCapture','game-log.png','Game log')" title="Share screenshot">📸</button>
+    </div>
   </div>
   <div class="card">
     <h2>Activity log</h2>
     <p class="sub">Every change made in this flight, most recent first.</p>
     <div class="table-scroll"><table>
       <tr><th>Time</th><th>By</th><th>What</th></tr>
-      ${actRows || `<tr><td colspan="3" class="muted">No activity recorded yet.</td></tr>`}
+      ${actRows || `<tr><td colspan="3" class="muted">No activity in this range.</td></tr>`}
     </table></div>
   </div>`;
 }
@@ -712,11 +731,11 @@ async function ownerSignOut(){
 }
 
 let OWNER_FLIGHTS = [];
-const OWNER_TABS = [["ownerDashboard","Flights"],["ownerLogs","Logs"]];
+const OWNER_TABS = [["ownerDashboard","🏳️","Flights"],["ownerLogs","📜","Logs"]];
 
 function ownerNavHtml(){
-  return OWNER_TABS.map(([id,label]) =>
-    `<button data-tab="${id}" class="${STATE.page===id||(id==='ownerDashboard'&&(STATE.page==='ownerFlightDetail'||STATE.page==='ownerFlightLogsSingle'))?"active":""}" onclick="STATE.page='${id}';render()"><span class="nav-label">${label}</span></button>`).join("");
+  return OWNER_TABS.map(([id,icon,label]) =>
+    `<button data-tab="${id}" class="${STATE.page===id||(id==='ownerDashboard'&&(STATE.page==='ownerFlightDetail'||STATE.page==='ownerFlightLogsSingle'))?"active":""}" onclick="STATE.page='${id}';render()"><span class="nav-icon">${icon}</span><span class="nav-label">${label}</span></button>`).join("");
 }
 
 async function renderOwnerDashboard(){
@@ -749,10 +768,10 @@ async function renderOwnerDashboard(){
     <div class="card">
       <h2 class="tab-setup">Add a flight</h2>
       <div class="row">
-        <input id="newFlightName" placeholder="e.g. Flight 5" style="width:150px">
-        <input id="newFlightAdmin" placeholder="Admin name" style="width:150px">
-        <div style="width:170px">${pinField("newFlightPin", "Initial PIN", { style:"width:100%" })}</div>
-        <button class="primary" onclick="addFlight()">Add</button>
+        <input id="newFlightName" placeholder="e.g. Flight 5" style="width:100%">
+        <input id="newFlightAdmin" placeholder="Admin name" style="width:100%">
+        <div style="width:100%">${pinField("newFlightPin", "Initial PIN", { style:"width:100%" })}</div>
+        <button class="primary" style="width:100%" onclick="addFlight()">Add</button>
       </div>
       <p class="muted" style="margin-top:8px">The admin sets their own PIN the first time they sign in.</p>
     </div>`;
@@ -875,6 +894,7 @@ let OWNER_LOG_FLIGHT = null;
 
 function viewFlightLogs(encodedName){
   OWNER_LOG_FLIGHT = decodeURIComponent(encodedName);
+  LOG_FROM = ""; LOG_TO = "";
   STATE.page = "ownerFlightLogsSingle";
   render();
 }
@@ -952,10 +972,10 @@ function setOwnerLogCategory(cat){
 
 function renderOwnerLogsCategory(){
   const cats = [
-    ["attendance","Attendance logs"],
-    ["shuttle","Shuttle logs"],
-    ["payments","Payment logs"],
-    ["arrears","Arrears logs"]
+    ["attendance","Attendance"],
+    ["shuttle","Shuttle"],
+    ["payments","Payments"],
+    ["arrears","Arrears"]
   ];
   const nav = cats.map(([id,label]) =>
     `<button class="${OWNER_LOG_CATEGORY===id?'primary':''}" onclick="setOwnerLogCategory('${id}')">${label}</button>`).join("");
@@ -1016,14 +1036,14 @@ async function renderPublicView(token){
       <td class="num">${h.dueFils ? `BHD ${bhd(h.dueFils)}` : "—"}</td>
     </tr>`).join("");
     document.getElementById("content").innerHTML = `
-      <div class="card" style="max-width:480px;margin:40px auto;text-align:center">
+      <div class="card" style="margin-top:20px;text-align:center">
         <h2>${escapeHtml(data.memberName)}</h2>
-        <p style="font-size:30px;font-weight:800;font-family:'Poppins',sans-serif;color:${data.outstandingFils?"var(--coral)":"var(--court)"}">BHD ${bhd(data.outstandingFils)}</p>
+        <p style="font-size:28px;font-weight:800;font-family:'Poppins',sans-serif;color:${data.outstandingFils?"var(--coral)":"var(--court)"}">BHD ${bhd(data.outstandingFils)}</p>
         <p class="muted">${data.outstandingFils ? "total outstanding" : "all settled — nothing owed"}</p>
         ${rows ? `<div class="table-scroll" style="margin-top:16px"><table style="text-align:left"><tr><th>Date</th><th class="num">Status</th><th class="num">Due</th></tr>${rows}</table></div>` : `<p class="muted" style="margin-top:16px">No games recorded yet.</p>`}
       </div>`;
   }catch(err){
-    document.getElementById("content").innerHTML = `<div class="card" style="max-width:420px;margin:40px auto;text-align:center"><p class="muted">${escapeHtml(err.message)}</p></div>`;
+    document.getElementById("content").innerHTML = `<div class="card" style="margin-top:20px;text-align:center"><p class="muted">${escapeHtml(err.message)}</p></div>`;
   }
 }
 
@@ -1031,15 +1051,15 @@ async function renderPublicView(token){
    ROUTER
    =================================================================== */
 const TABS = [
-  ["session","1","New Session"],
-  ["payments","2","Payments"],
-  ["report","3","Report"],
-  ["logs","4","Logs"],
-  ["admins","5","Admins"],
-  ["setup","6","Setup"]
+  ["session","🏸","Session"],
+  ["payments","💰","Payments"],
+  ["report","📊","Report"],
+  ["logs","📜","Logs"],
+  ["admins","👥","Admins"],
+  ["setup","⚙️","Setup"]
 ];
 
-function goto(page){ STATE.page = page; render(); }
+function goto(page){ STATE.page = page; if(page === "logs"){ LOG_FROM=""; LOG_TO=""; } render(); }
 
 async function refreshFlight(){
   STATE.fl = await api("/api/flight");
@@ -1082,8 +1102,8 @@ async function render(){
   document.getElementById("hdrSub").textContent = fl.currentAdmin ? `Signed in as ${fl.currentAdmin.name}` : "";
   document.getElementById("hdrActions").innerHTML = `<button class="ghost" onclick="signOut()">🔒 Sign out</button>`;
 
-  document.getElementById("navBar").innerHTML = TABS.map(([id,num,label]) =>
-    `<button data-tab="${id}" class="${STATE.page===id?"active":""}" onclick="goto('${id}')"><span class="nav-num">${num}</span><span class="nav-label">${label}</span></button>`).join("");
+  document.getElementById("navBar").innerHTML = TABS.map(([id,icon,label]) =>
+    `<button data-tab="${id}" class="${STATE.page===id?"active":""}" onclick="goto('${id}')"><span class="nav-icon">${icon}</span><span class="nav-label">${label}</span></button>`).join("");
 
   const DISPATCH = { setup:pageSetup, session:pageSession, payments:pagePayments, report:pageReport, logs:pageLogs, admins:pageAdmins };
   document.getElementById("content").innerHTML = DISPATCH[STATE.page](fl);
@@ -1116,9 +1136,9 @@ function pageAdmins(fl){
   <div class="card">
     <h2 class="tab-setup">Add an admin</h2>
     <div class="row">
-      <input id="newAdminName" placeholder="Name" style="width:170px">
-      <div style="width:190px">${pinField("newAdminPin", "Temporary PIN", { style:"width:100%" })}</div>
-      <button class="primary" onclick="addAdmin()">Add admin</button>
+      <input id="newAdminName" placeholder="Name" style="width:100%">
+      <div style="width:100%">${pinField("newAdminPin", "Temporary PIN", { style:"width:100%" })}</div>
+      <button class="primary" style="width:100%" onclick="addAdmin()">Add admin</button>
     </div>
   </div>`;
 }
@@ -1159,7 +1179,7 @@ function pageSetup(fl){
       <td class="num">
         <button onclick="toggleMember('${m.id}')">${m.active ? "Deactivate" : "Activate"}</button>
         <button onclick="editMember('${m.id}')">Edit</button>
-        <button onclick="copyPlayerLink('${m.publicToken}','${escapeHtml(m.name)}')">🔗 Link</button>
+        <button onclick="copyPlayerLink('${m.publicToken}','${escapeHtml(m.name)}')">🔗</button>
         <button class="danger" onclick="deleteMember('${m.id}')">Delete</button>
       </td></tr>`;
   }).join("");
@@ -1182,7 +1202,7 @@ function pageSetup(fl){
           <input type="number" id="perTube" value="${fl.shuttlesPerTube}" style="width:100px"></div>
         <div class="field"><label>Tube price (BHD)</label>
           <input type="number" step="0.001" id="tubePrice" value="${bhd(fl.tubePriceFils)}" style="width:110px"></div>
-        <div class="field"><label>&nbsp;</label><button class="primary" onclick="saveSettings()">Save settings</button></div>
+        <div class="field" style="width:100%"><label>&nbsp;</label><button class="primary" style="width:100%" onclick="saveSettings()">Save settings</button></div>
       </div>
       <p class="muted" style="margin-top:8px">Fill in <strong>either</strong> "Add tubes" <strong>or</strong> "Set exact count" — not both.</p>
       <p class="muted" style="margin-top:8px">Price per shuttle: <strong style="color:var(--navy)">BHD ${bhd(perShuttle)}</strong> (${bhd(fl.tubePriceFils)} ÷ ${fl.shuttlesPerTube}).</p>
@@ -1195,9 +1215,9 @@ function pageSetup(fl){
       <h2 class="tab-setup">Change your PIN</h2>
       <p class="sub">Only someone who already knows the current PIN can change it.</p>
       <div class="row">
-        <div style="width:150px">${pinField("oldPin", "Current PIN", { style:"width:100%" })}</div>
-        <div style="width:150px">${pinField("newPin", "New PIN", { style:"width:100%" })}</div>
-        <button class="primary" onclick="changePin()">Update PIN</button>
+        <div style="width:100%">${pinField("oldPin", "Current PIN", { style:"width:100%" })}</div>
+        <div style="width:100%">${pinField("newPin", "New PIN", { style:"width:100%" })}</div>
+        <button class="primary" style="width:100%" onclick="changePin()">Update PIN</button>
       </div>
     </div>
   </div>
@@ -1206,8 +1226,8 @@ function pageSetup(fl){
     <h2 class="tab-setup">Recovery code</h2>
     <p class="sub">Set this once so you can reset your own forgotten PIN later — nobody else needs to know it, and neither do we.</p>
     <div class="row">
-      <input id="recoveryCodeSet" placeholder="${fl.currentAdmin?.hasRecoveryCode ? "Set a new recovery code" : "Set a recovery code"}" style="width:240px" autocomplete="off">
-      <button class="primary" onclick="saveRecoveryCode()">Save recovery code</button>
+      <input id="recoveryCodeSet" placeholder="${fl.currentAdmin?.hasRecoveryCode ? "Set a new recovery code" : "Set a recovery code"}" style="width:100%" autocomplete="off">
+      <button class="primary" style="width:100%" onclick="saveRecoveryCode()">Save recovery code</button>
       ${fl.currentAdmin?.hasRecoveryCode ? `<span class="badge b-paid">Already set</span>` : `<span class="badge b-warn">Not set yet</span>`}
     </div>
   </div>
@@ -1215,11 +1235,11 @@ function pageSetup(fl){
   <div class="card">
     <h2 class="tab-setup">Members — ${fl.members.filter(m=>m.active).length} active</h2>
     <div class="row" style="margin-bottom:14px">
-      <input id="newMemberName" placeholder="Member name" style="width:180px" onkeydown="if(event.key==='Enter')addMember()">
-      <input id="newMemberPhone" placeholder="Phone incl. country code" style="width:190px">
-      <button class="primary" onclick="addMember()">Add member</button>
+      <input id="newMemberName" placeholder="Member name" style="width:100%" onkeydown="if(event.key==='Enter')addMember()">
+      <input id="newMemberPhone" placeholder="Phone incl. country code" style="width:100%">
+      <button class="primary" style="width:100%" onclick="addMember()">Add member</button>
     </div>
-    <div class="table-scroll"><table><tr><th style="width:40px">#</th><th>Name</th><th>Status</th><th class="num">Outstanding</th><th></th></tr>
+    <div class="table-scroll"><table><tr><th style="width:40px">#</th><th>Name</th><th>Status</th><th class="num">Owes</th><th></th></tr>
       ${rows || `<tr><td colspan="5" class="muted">No members yet — add the first one above.</td></tr>`}</table></div>
     ${fl.members.length ? `<div class="row" style="margin-top:14px">
       <button class="danger" onclick="clearAllMembers()">Remove all members</button>
@@ -1385,11 +1405,11 @@ function pageSession(fl){
   const rows = active.map(m => memberRowHtml(fl, m)).join("");
 
   const recent = fl.sessions.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6).map(s =>
-    `<tr><td>${shortDate(s.date)}<br><span class="muted">${dayName(s.date)}${s.createdBy ? ` · by ${escapeHtml(s.createdBy)}` : ""}</span></td>
+    `<tr><td>${shortDate(s.date)}<br><span class="muted">${dayName(s.date)}${s.createdBy ? ` · ${escapeHtml(s.createdBy)}` : ""}</span></td>
       <td class="num">${s.shuttlesUsed}</td><td class="num">${s.presentIds.length}</td>
       <td class="num">${bhd(s.totalCostFils)}</td>
       <td class="num">${bhd(Math.round(s.totalCostFils / s.presentIds.length))}</td>
-      <td class="num"><button class="danger" onclick="deleteSession('${s.id}')">Delete</button></td></tr>`
+      <td class="num"><button class="danger" onclick="deleteSession('${s.id}')">🗑</button></td></tr>`
   ).join("");
 
   return `
@@ -1400,24 +1420,26 @@ function pageSession(fl){
   <div class="card">
     <h2 class="tab-session">Mark today's game</h2>
     <div class="row" style="margin-bottom:14px">
-      <div class="field"><label>Game date</label><input type="date" id="sessionDate" value="${todayISO()}"></div>
-      <div class="field"><label>Shuttles used</label>
-        <input type="number" min="0" max="${stock}" id="shuttlesUsed" placeholder="e.g. 10" style="width:120px" oninput="refreshPreview()"></div>
-      <div class="field"><label>&nbsp;</label><button onclick="markMe()">👤 Me</button></div>
-      <div class="field"><label>&nbsp;</label><button onclick="selectAll()">Select all</button></div>
-      <div class="field"><label>&nbsp;</label><button onclick="clearAllPresent()">Clear</button></div>
+      <div class="field" style="flex:1;min-width:130px"><label>Game date</label><input type="date" id="sessionDate" value="${todayISO()}" style="width:100%"></div>
+      <div class="field" style="flex:1;min-width:100px"><label>Shuttles used</label>
+        <input type="number" min="0" max="${stock}" id="shuttlesUsed" placeholder="e.g. 10" style="width:100%" oninput="refreshPreview()"></div>
+    </div>
+    <div class="row" style="margin-bottom:14px">
+      <button onclick="markMe()">👤 Me</button>
+      <button onclick="selectAll()">✅ All</button>
+      <button onclick="clearAllPresent()">✖ Clear</button>
     </div>
     <input type="text" id="memberSearch" placeholder="🔍 Search player…" style="width:100%;margin-bottom:10px" oninput="filterMemberList(this.value)">
     <div class="present-counter" id="presentCounter">${PRESENT.size} of ${active.length} present</div>
     <div class="member-list" id="memberList">${rows}</div>
     <div class="summary" id="preview" style="margin-top:16px">${previewHtml(fl, 0)}</div>
-    <div style="margin-top:18px"><button class="primary big" onclick="saveSession()">Save game &amp; charge players</button></div>
+    <div style="margin-top:18px"><button class="primary big" style="width:100%" onclick="saveSession()">Save game &amp; charge players</button></div>
     <p class="muted" style="margin-top:10px">
       Price per shuttle: BHD ${bhd(pricePerShuttleFils(fl.tubePriceFils, fl.shuttlesPerTube))} · Stock: <strong>${stock} shuttles</strong>
     </p>
   </div>
   <div class="card"><h2 class="tab-session">Recent games</h2>
-    <div class="table-scroll"><table><tr><th>Date</th><th class="num">Shuttles</th><th class="num">Present</th><th class="num">Day cost</th><th class="num">Each share</th><th></th></tr>
+    <div class="table-scroll"><table><tr><th>Date</th><th class="num">Shuttles</th><th class="num">Present</th><th class="num">Cost</th><th class="num">Each</th><th></th></tr>
       ${recent || `<tr><td colspan="6" class="muted">No games saved yet.</td></tr>`}</table></div>
   </div>`;
 }
@@ -1448,10 +1470,10 @@ function previewHtml(fl, used){
   const total = used > 0 ? Math.round(used * pricePerShuttleFils(fl.tubePriceFils, fl.shuttlesPerTube)) : 0;
   const each = n > 0 ? Math.round(total / n) : 0;
   return `
-    <div><span>Players present</span><strong>${n}</strong></div>
-    <div><span>Shuttles used</span><strong>${used || 0}</strong></div>
-    <div><span>Day cost</span><strong>BHD ${bhd(total)}</strong></div>
-    <div><span>Each player pays</span><strong style="color:var(--court-deep)">BHD ${bhd(each)}</strong></div>`;
+    <div><span>Present</span><strong>${n}</strong></div>
+    <div><span>Shuttles</span><strong>${used || 0}</strong></div>
+    <div><span>Cost</span><strong>BHD ${bhd(total)}</strong></div>
+    <div><span>Each pays</span><strong style="color:var(--court-deep)">BHD ${bhd(each)}</strong></div>`;
 }
 function refreshPreview(){
   const used = Number(document.getElementById("shuttlesUsed")?.value || 0);
@@ -1557,7 +1579,7 @@ function pagePayments(fl){
         <div class="payline">
           <div class="payline-info">
             ${shortDate(s.date)} — <strong>BHD ${bhd(remaining)}</strong> due
-            ${paid > 0 ? `<span class="muted">(BHD ${bhd(paid)} already paid)</span>` : ""} ${agingBadge(days)}
+            ${paid > 0 ? `<span class="muted">(BHD ${bhd(paid)} paid)</span>` : ""} ${agingBadge(days)}
           </div>
           <label class="paid-checkbox-label">
             <input type="checkbox" onchange="markPaidCheckbox(this,'${s.id}','${m.id}',${remaining},${paid})">
@@ -1570,8 +1592,8 @@ function pagePayments(fl){
       <div class="row" style="justify-content:space-between;margin-bottom:${unpaid.length?"6px":"0"}">
         <h2 style="margin:0;font-size:15px">${escapeHtml(m.name)}</h2>
         <div class="row">
-          <strong style="color:${owed?"var(--coral-deep)":"var(--court-deep)"};font-size:16px;font-family:'Poppins',sans-serif">BHD ${bhd(owed)}</strong>
-          ${owed ? `<button class="primary" onclick="settleAll('${m.id}')">Settle all</button>` : `<span class="badge b-paid">All settled</span>`}
+          <strong style="color:${owed?"var(--coral-deep)":"var(--court-deep)"};font-size:15px;font-family:'Poppins',sans-serif">BHD ${bhd(owed)}</strong>
+          ${owed ? `<button class="primary" onclick="settleAll('${m.id}')">Settle all</button>` : `<span class="badge b-paid">Settled</span>`}
         </div>
       </div>
       ${gameLines}
@@ -1582,9 +1604,9 @@ function pagePayments(fl){
   <div class="card"><h2 class="tab-payments">Who still owes</h2>
     <p class="sub">Tick "Paid" once a player has settled that game in full. "Settle all" clears everything for a player at once. Both can be undone for a few seconds right after.</p>
     <div class="summary" style="margin-bottom:16px">
-      <div><span>Total outstanding</span><strong style="color:var(--coral-deep)">BHD ${bhd(totalOwed)}</strong></div>
-      <div><span>Players owing</span><strong>${withCharges.filter(m => outstandingFils(fl,m.id)>0).length}</strong></div>
-      <div><span>Games recorded</span><strong>${fl.sessions.length}</strong></div>
+      <div><span>Total owed</span><strong style="color:var(--coral-deep)">BHD ${bhd(totalOwed)}</strong></div>
+      <div><span>Owing</span><strong>${withCharges.filter(m => outstandingFils(fl,m.id)>0).length}</strong></div>
+      <div><span>Games</span><strong>${fl.sessions.length}</strong></div>
     </div>
   </div>
   ${rows}`;
@@ -1662,16 +1684,16 @@ function pageReport(fl){
   return `
   <div class="card no-print"><h2 class="tab-report">Report</h2>
     <div class="row">
-      <div class="field"><label>Period</label>
-        <select onchange="setPeriod(this.value)">${Object.entries(PERIOD_LABEL).map(([k,v]) =>
+      <div class="field" style="flex:1;min-width:100px"><label>Period</label>
+        <select onchange="setPeriod(this.value)" style="width:100%">${Object.entries(PERIOD_LABEL).map(([k,v]) =>
           `<option value="${k}" ${PERIOD===k?"selected":""}>${v}</option>`).join("")}</select></div>
-      <div class="field"><label>Date within period</label>
-        <input type="date" value="${ANCHOR}" onchange="setAnchor(this.value)" ${PERIOD==="all"?"disabled":""}></div>
-      <div class="field"><label>&nbsp;</label><button class="primary" onclick="window.print()">🖨️ Print / Save PDF</button></div>
+      <div class="field" style="flex:1;min-width:130px"><label>Date within period</label>
+        <input type="date" value="${ANCHOR}" onchange="setAnchor(this.value)" style="width:100%" ${PERIOD==="all"?"disabled":""}></div>
     </div>
+    <button class="primary" style="width:100%;margin-top:10px" onclick="window.print()">🖨️ Print / Save PDF</button>
   </div>
   <div class="card">
-    <h2 class="tab-report" style="text-align:center;font-size:19px">${escapeHtml(fl.flightName)} — Shuttle Cost Sheet</h2>
+    <h2 class="tab-report" style="text-align:center;font-size:18px">${escapeHtml(fl.flightName)} — Shuttle Cost Sheet</h2>
     <p class="sub" style="text-align:center">${title}${fl.currentAdmin ? ` · Printed by ${escapeHtml(fl.currentAdmin.name)}` : ""}</p>
     ${sessions.length ? `<div class="table-scroll"><table class="report"><thead>
       <tr><th rowspan="2" style="width:38px">S.No</th><th rowspan="2">Name</th>${header}
