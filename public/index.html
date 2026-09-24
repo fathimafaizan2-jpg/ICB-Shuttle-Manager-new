@@ -26,7 +26,6 @@ body{
 }
 h1,h2,.brand-font{ font-family:'Poppins','Inter',sans-serif; }
 
-/* Fixed phone-width shell — the whole app lives inside this at every screen size */
 .app-shell{
   width:100%; max-width:480px;
   background:var(--bg);
@@ -103,7 +102,6 @@ button.link-btn:active{transform:none;}
 button.icon-btn{padding:8px 10px;flex-shrink:0;font-size:15px;line-height:1;}
 button.back-btn{background:#f1ebd9;color:var(--navy);font-weight:700;}
 
-/* ============== TOP NAVIGATION — 3D icon buttons ============== */
 .app-body{display:flex;flex-direction:column;flex:1;width:100%;}
 nav{
   display:flex; gap:7px; background:transparent;
@@ -469,28 +467,28 @@ function toggleEye(id, btn){
 }
 
 /* Captures a section of the page as a PNG and hands it to the phone's
-   native Share sheet. Temporarily disables horizontal table scrolling and
-   asks html2canvas to render the element's FULL size (not just whatever is
-   currently visible in the viewport) so long/scrolled tables aren't cut off. */
+   native Share sheet. Builds a full-width, off-screen CLONE of the target
+   first — this guarantees wide tables are captured completely, instead of
+   whatever happened to fit in the visible phone-width column on screen. */
 async function shareScreenshot(elementId, filename, shareText){
-  const el = document.getElementById(elementId);
-  if(!el){ toast("Nothing to capture."); return; }
+  const original = document.getElementById(elementId);
+  if(!original){ toast("Nothing to capture."); return; }
   if(typeof html2canvas === "undefined"){ toast("Screenshot tool didn't load — check your connection."); return; }
   toast("Preparing screenshot…");
 
-  const scrollers = el.querySelectorAll(".table-scroll");
-  const prevCss = [];
-  scrollers.forEach(s => { prevCss.push(s.style.cssText); s.style.overflow = "visible"; });
+  const clone = original.cloneNode(true);
+  clone.querySelectorAll(".table-scroll").forEach(s => {
+    s.style.overflow = "visible";
+    s.style.width = "max-content";
+  });
+  clone.querySelectorAll(".no-print").forEach(el => el.remove());
+  const wrapper = document.createElement("div");
+  wrapper.style.cssText = "position:absolute;top:0;left:-99999px;background:#fffdf8;padding:18px;width:max-content;max-width:none;";
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
 
   try{
-    const canvas = await html2canvas(el, {
-      backgroundColor: "#fffdf8",
-      scale: 2,
-      scrollX: -window.scrollX,
-      scrollY: -window.scrollY,
-      windowWidth: document.documentElement.scrollWidth,
-      windowHeight: document.documentElement.scrollHeight
-    });
+    const canvas = await html2canvas(wrapper, { backgroundColor: "#fffdf8", scale: 2 });
     canvas.toBlob(async (blob) => {
       if(!blob){ toast("Couldn't create the image."); return; }
       const file = new File([blob], filename, { type: "image/png" });
@@ -503,13 +501,13 @@ async function shareScreenshot(elementId, filename, shareText){
         a.href = url; a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
-        toast("Screenshot saved — attach it in WhatsApp manually.");
+        toast("Saved — attach it in WhatsApp manually.");
       }
     }, "image/png");
   }catch(err){
     toast("Couldn't capture the screenshot.");
   }finally{
-    scrollers.forEach((s,i) => { s.style.cssText = prevCss[i]; });
+    document.body.removeChild(wrapper);
   }
 }
 
@@ -1632,7 +1630,7 @@ function pagePayments(fl){
 
   const header = `
   <div class="card"><h2 class="tab-payments">Payments</h2>
-    <p class="sub">Tick "Paid" once a player has settled that game in full. "Settle all" clears everything for a player at once.</p>
+    <p class="sub">Tick "Paid" once a player has settled that game. Untick it anytime to undo — no popup, no time limit. "Settle all" clears everything for a player at once.</p>
     <div class="summary" style="margin-bottom:14px">
       <div><span>Total owed</span><strong style="color:var(--coral-deep)">BHD ${bhd(totalOwed)}</strong></div>
       <div><span>Owing</span><strong>${owingMembers.length}</strong></div>
@@ -1660,35 +1658,36 @@ function pagePayments(fl){
     return header + (rows || `<div class="card"><p class="muted">No one is fully settled yet.</p></div>`);
   }
 
+  // Owing tab — every game this member owes for shows its OWN persistent
+  // checkbox (paid or unpaid). Unticking a previously-ticked game reverses
+  // that single payment immediately, at any time — no 5-second window.
   const rows = owingMembers.map(m => {
     const owed = outstandingFils(fl, m.id);
-    const unpaid = fl.sessions.filter(s => {
-      const share = s.shares[m.id];
-      if(!share) return false;
-      return paidAmountFor(fl, `${s.id}_${m.id}`, share) < share;
-    });
+    const allGames = fl.sessions.filter(s => s.shares[m.id]);
 
-    const gameLines = unpaid.map(s => {
+    const gameLines = allGames.map(s => {
       const share = s.shares[m.id];
       const paid = paidAmountFor(fl, `${s.id}_${m.id}`, share);
       const remaining = share - paid;
-      const key = `${s.id}_${m.id}`;
+      const isPaid = remaining <= 0;
       const days = daysSince(s.date);
       return `
         <div class="payline">
           <div class="payline-info">
-            ${shortDate(s.date)} — <strong>BHD ${bhd(remaining)}</strong> due
-            ${paid > 0 ? `<span class="muted">(BHD ${bhd(paid)} paid)</span>` : ""} ${agingBadge(days)}
+            ${shortDate(s.date)} — <strong>BHD ${bhd(share)}</strong>
+            ${isPaid
+              ? `<span class="badge b-paid" style="margin-left:6px">Paid</span>`
+              : `<span class="muted"> · BHD ${bhd(remaining)} due</span> ${agingBadge(days)}`}
           </div>
           <label class="paid-checkbox-label">
-            <input type="checkbox" onchange="markPaidCheckbox(this,'${s.id}','${m.id}',${remaining},${paid})">
+            <input type="checkbox" ${isPaid?"checked":""} onchange="togglePaidCheckbox(this,'${s.id}','${m.id}',${share})">
             Paid
           </label>
         </div>`;
     }).join("");
 
     return `<div class="card" style="margin-bottom:12px">
-      <div class="row" style="justify-content:space-between;margin-bottom:${unpaid.length?"6px":"0"}">
+      <div class="row" style="justify-content:space-between;margin-bottom:${allGames.length?"6px":"0"}">
         <h2 style="margin:0;font-size:15px">${escapeHtml(m.name)}</h2>
         <div class="row">
           <strong style="color:var(--coral-deep);font-size:15px;font-family:'Poppins',sans-serif">BHD ${bhd(owed)}</strong>
@@ -1702,22 +1701,23 @@ function pagePayments(fl){
   return header + rows;
 }
 
-async function markPaidCheckbox(checkbox, sessionId, memberId, remainingFils, priorAmount){
-  if(!checkbox.checked) return;
+// Persistent, reversible at any time — ticking marks that one game fully
+// paid, unticking reverses it back to unpaid. No popup, no undo window.
+async function togglePaidCheckbox(checkbox, sessionId, memberId, shareFils){
   checkbox.disabled = true;
+  const checked = checkbox.checked;
   try{
-    STATE.fl = await api(`/api/payments/${sessionId}/${memberId}/pay-partial`, { method:"POST", body: JSON.stringify({ amountFils: remainingFils }) });
+    if(checked){
+      STATE.fl = await api(`/api/payments/${sessionId}/${memberId}/pay-partial`, { method:"POST", body: JSON.stringify({ amountFils: shareFils }) });
+      toast("Marked as paid.");
+    } else {
+      STATE.fl = await api("/api/payments/restore", { method:"POST", body: JSON.stringify({ entries: [{ sessionId, memberId, amount: 0 }] }) });
+      toast("Marked as unpaid.");
+    }
     render();
-    showUndoBar("Marked as paid.", async () => {
-      try{
-        STATE.fl = await api("/api/payments/restore", { method:"POST", body: JSON.stringify({ entries: [{ sessionId, memberId, amount: priorAmount }] }) });
-        render();
-        toast("Undone.");
-      }catch(err){ toast(err.message); }
-    });
   }catch(err){
     toast(err.message);
-    checkbox.checked = false;
+    checkbox.checked = !checked;
     checkbox.disabled = false;
   }
 }
@@ -1743,9 +1743,8 @@ async function settleAll(memberId){
   }catch(err){ toast(err.message); }
 }
 
-// Called from the Settled tab — instantly reopens all of this member's
-// charges as unpaid, no confirmation popup. A 5-second Undo bar follows,
-// so a mis-tap can still be reversed right away.
+// From the Settled tab — instantly reopens all of this member's charges as
+// unpaid, no popup. A 5-second Undo bar follows as a backup.
 async function undoSettleFromSettledTab(memberId){
   const m = STATE.fl.members.find(x => x.id===memberId);
   const priorEntries = STATE.fl.sessions
@@ -1799,47 +1798,4 @@ function pageReport(fl){
     <div class="row">
       <div class="field" style="flex:1;min-width:100px"><label>Period</label>
         <select onchange="setPeriod(this.value)" style="width:100%">${Object.entries(PERIOD_LABEL).map(([k,v]) =>
-          `<option value="${k}" ${PERIOD===k?"selected":""}>${v}</option>`).join("")}</select></div>
-      <div class="field" style="flex:1;min-width:130px"><label>Date within period</label>
-        <input type="date" value="${ANCHOR}" onchange="setAnchor(this.value)" style="width:100%" ${PERIOD==="all"?"disabled":""}></div>
-    </div>
-    <button class="primary" style="width:100%;margin-top:10px" onclick="window.print()">🖨️ Print / Save PDF</button>
-  </div>
-  <div class="card">
-    <h2 class="tab-report" style="text-align:center;font-size:18px">${escapeHtml(fl.flightName)} — Shuttle Cost Sheet</h2>
-    <p class="sub" style="text-align:center">${title}${fl.currentAdmin ? ` · Printed by ${escapeHtml(fl.currentAdmin.name)}` : ""}</p>
-    ${sessions.length ? `<div class="table-scroll"><table class="report"><thead>
-      <tr><th rowspan="2" style="width:38px">S.No</th><th rowspan="2">Name</th>${header}
-        <th rowspan="8" style="width:100px;color:#3a2b00">Amount<br>to Pay</th></tr>
-      <tr>${sessions.map(()=>`<th></th><th></th>`).join("")}</tr></thead>
-      <tbody>
-        ${metric("No. of Shuttles Used", s => s.shuttlesUsed)}
-        ${metric("No. of Players Present", s => s.presentIds.length)}
-        ${metric("No. of Players Absent", s => members.length - s.presentIds.length)}
-        ${metric("Shuttle Cost", s => bhd(s.totalCostFils))}
-        ${metric("Each Share", s => bhd(Math.round(s.totalCostFils / s.presentIds.length)))}
-        ${body}
-      </tbody><tfoot>${footer}</tfoot></table></div>`
-      : `<p class="muted" style="text-align:center;padding:30px">No games in this period.</p>`}
-  </div>`;
-}
-function setPeriod(v){ PERIOD = v; render(); }
-function setAnchor(v){ ANCHOR = v; render(); }
-
-/* =============================== BOOT =============================== */
-(async function boot(){
-  const params = new URLSearchParams(location.search);
-  const publicToken = params.get("p");
-  if(publicToken){ await renderPublicView(publicToken); return; }
-
-  if(getToken()){
-    try{
-      await refreshFlight();
-      if(STATE.fl?.currentAdmin?.mustChangePin){ STATE.page = "mustChangePin"; }
-    }catch{}
-  }
-  render();
-})();
-</script>
-</body>
-</html>
+          `<option value="${k}" ${PERIOD===k?"selected":""}>${v}</option>`).join("")}</select></di
