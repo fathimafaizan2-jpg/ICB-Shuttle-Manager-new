@@ -1627,7 +1627,7 @@ function pagePayments(fl){
             ${shortDate(s.date)} — <strong>BHD ${bhd(share)}</strong>
             ${isPaid
               ? ``
-              : `<span class="muted"> · BHD ${bhd(remaining)} due</span> ${agingBadge(days)}`}
+              : (paid > 0 ? `<span class="muted"> · BHD ${bhd(remaining)} still due</span>` : ``)} ${!isPaid ? agingBadge(days) : ``}
           </div>
           <label class="paid-checkbox-label">
             <input type="checkbox" ${isPaid?"checked":""} onchange="togglePaidCheckbox(this,'${s.id}','${m.id}',${share})">
