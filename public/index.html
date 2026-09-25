@@ -297,9 +297,6 @@ footer strong{color:var(--navy);}
 </script>
 
 <script>
-/* ===================================================================
-   API CLIENTS
-   =================================================================== */
 const TOKEN_KEY = "shuttle_token";
 function getToken(){ return localStorage.getItem(TOKEN_KEY); }
 function setToken(t){ localStorage.setItem(TOKEN_KEY, t); }
@@ -356,9 +353,6 @@ function mapFirebaseAuthError(err){
 
 const STATE = { fl: null, page: "session" };
 
-/* ===================================================================
-   HELPERS
-   =================================================================== */
 let TOAST_TIMER = null;
 function toast(msg){
   const el = document.getElementById("toast");
@@ -450,8 +444,6 @@ function confirmScoped(message, word){
   return typed === word;
 }
 
-/* Reusable password/PIN field with a show/hide eye toggle. Autocomplete is
-   disabled so browsers never offer to save or auto-fill these. */
 function pinField(id, placeholder, opts = {}){
   const cls = opts.big ? "pin-input" : "";
   const style = opts.style || "flex:1;min-width:0";
@@ -466,10 +458,6 @@ function toggleEye(id, btn){
   else { el.type = "password"; btn.textContent = "👁"; }
 }
 
-/* Captures a section of the page as a PNG and hands it to the phone's
-   native Share sheet. Builds a full-width, off-screen CLONE of the target
-   first — this guarantees wide tables are captured completely, instead of
-   whatever happened to fit in the visible phone-width column on screen. */
 async function shareScreenshot(elementId, filename, shareText){
   const original = document.getElementById(elementId);
   if(!original){ toast("Nothing to capture."); return; }
@@ -511,10 +499,6 @@ async function shareScreenshot(elementId, filename, shareText){
   }
 }
 
-/* ===================================================================
-   LOGS — shared date-range + category filter, used by the flight's own
-   Logs tab AND Super Admin's per-flight logs view.
-   =================================================================== */
 let LOG_FROM = "";
 let LOG_TO = "";
 let LOG_CATEGORY = "all";
@@ -607,9 +591,6 @@ function renderLogsHtml(sessions, auditLog, members){
   return out;
 }
 
-/* ===================================================================
-   UNDO BAR
-   =================================================================== */
 let UNDO_TIMER = null;
 function showUndoBar(message, onUndo){
   const bar = document.getElementById("undoBar");
@@ -624,9 +605,6 @@ function showUndoBar(message, onUndo){
   UNDO_TIMER = setTimeout(() => bar.classList.remove("show"), 5000);
 }
 
-/* ===================================================================
-   LOGIN + FORGOT PIN + FORCED FIRST PIN CHANGE
-   =================================================================== */
 let FLIGHT_NAMES = [];
 async function refreshFlightNames(){
   try{ FLIGHT_NAMES = await unwrapFetch("/api/flights"); }
@@ -741,9 +719,6 @@ async function confirmFirstPinChange(){
   }catch(err){ toast(err.message); }
 }
 
-/* ===================================================================
-   SUPER ADMIN
-   =================================================================== */
 function pageOwnerLogin(){
   return `
   <div class="card gate">
@@ -989,9 +964,6 @@ async function removeFlight(encodedName){
   }catch(err){ toast(err.message); }
 }
 
-/* ===================================================================
-   SUPER ADMIN — Categorized all-flights logs
-   =================================================================== */
 let OWNER_LOG_CATEGORY = "attendance";
 let OWNER_LOG_DATA = null;
 
@@ -1070,9 +1042,6 @@ function renderOwnerLogsCategory(){
     <div class="table-scroll">${body}</div></div>`;
 }
 
-/* ===================================================================
-   PUBLIC PLAYER VIEW (?p=token — no login, checked BEFORE any token)
-   =================================================================== */
 async function renderPublicView(token){
   document.getElementById("navBar").innerHTML = "";
   document.getElementById("hdrActions").innerHTML = "";
@@ -1099,9 +1068,6 @@ async function renderPublicView(token){
   }
 }
 
-/* ===================================================================
-   ROUTER
-   =================================================================== */
 const TABS = [
   ["session","🏸","Session"],
   ["payments","💰","Payments"],
@@ -1165,16 +1131,10 @@ async function render(){
   document.getElementById("content").innerHTML = DISPATCH[STATE.page](fl);
 }
 
-/* ===================================================================
-   TAB — LOGS (flight's own)
-   =================================================================== */
 function pageLogs(fl){
   return renderLogsHtml(fl.sessions, fl.auditLog, fl.members);
 }
 
-/* ===================================================================
-   TAB — ADMINS
-   =================================================================== */
 function pageAdmins(fl){
   const rows = fl.admins.map(a => `<tr>
     <td>${escapeHtml(a.name)}${a.id===fl.currentAdmin?.id ? ' <span class="badge b-paid">You</span>' : ""}</td>
@@ -1218,9 +1178,6 @@ async function removeAdmin(id, name){
   }catch(err){ toast(err.message); }
 }
 
-/* ===================================================================
-   TAB — SETUP
-   =================================================================== */
 function pageSetup(fl){
   const perShuttle = fl.shuttlesPerTube > 0 ? pricePerShuttleFils(fl.tubePriceFils, fl.shuttlesPerTube) : 0;
   const stock = fl.shuttlesInStock || 0;
@@ -1449,9 +1406,6 @@ async function resetFlightData(){
   }catch(err){ toast(err.message); }
 }
 
-/* ===================================================================
-   TAB — NEW SESSION
-   =================================================================== */
 let PRESENT = new Set();
 
 function pageSession(fl){
@@ -1608,9 +1562,6 @@ function deleteSession(id){
   }, 5000);
 }
 
-/* ===================================================================
-   TAB — PAYMENTS (Owing / Settled)
-   =================================================================== */
 let PAYMENTS_VIEW = "owing";
 function setPaymentsView(v){ PAYMENTS_VIEW = v; render(); }
 
@@ -1658,9 +1609,6 @@ function pagePayments(fl){
     return header + (rows || `<div class="card"><p class="muted">No one is fully settled yet.</p></div>`);
   }
 
-  // Owing tab — every game this member owes for shows its OWN persistent
-  // checkbox (paid or unpaid). Unticking a previously-ticked game reverses
-  // that single payment immediately, at any time — no 5-second window.
   const rows = owingMembers.map(m => {
     const owed = outstandingFils(fl, m.id);
     const allGames = fl.sessions.filter(s => s.shares[m.id]);
@@ -1701,8 +1649,6 @@ function pagePayments(fl){
   return header + rows;
 }
 
-// Persistent, reversible at any time — ticking marks that one game fully
-// paid, unticking reverses it back to unpaid. No popup, no undo window.
 async function togglePaidCheckbox(checkbox, sessionId, memberId, shareFils){
   checkbox.disabled = true;
   const checked = checkbox.checked;
@@ -1743,8 +1689,6 @@ async function settleAll(memberId){
   }catch(err){ toast(err.message); }
 }
 
-// From the Settled tab — instantly reopens all of this member's charges as
-// unpaid, no popup. A 5-second Undo bar follows as a backup.
 async function undoSettleFromSettledTab(memberId){
   const m = STATE.fl.members.find(x => x.id===memberId);
   const priorEntries = STATE.fl.sessions
@@ -1765,9 +1709,6 @@ async function undoSettleFromSettledTab(memberId){
   }catch(err){ toast(err.message); }
 }
 
-/* ===================================================================
-   TAB — REPORT (P/A marks)
-   =================================================================== */
 let PERIOD = "month";
 let ANCHOR = todayISO();
 const PERIOD_LABEL = { day:"Day", week:"Week", month:"Month", all:"All time" };
@@ -1798,4 +1739,50 @@ function pageReport(fl){
     <div class="row">
       <div class="field" style="flex:1;min-width:100px"><label>Period</label>
         <select onchange="setPeriod(this.value)" style="width:100%">${Object.entries(PERIOD_LABEL).map(([k,v]) =>
-          `<option value="${k}" ${PERIOD===k?"selected":""}>${v}</option>`).join("")}</select></di
+          `<option value="${k}" ${PERIOD===k?"selected":""}>${v}</option>`).join("")}</select></div>
+      <div class="field" style="flex:1;min-width:130px"><label>Date within period</label>
+        <input type="date" value="${ANCHOR}" onchange="setAnchor(this.value)" style="width:100%" ${PERIOD==="all"?"disabled":""}></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" style="flex:1" onclick="shareScreenshot('reportCapture','report.png','${escapeHtml(fl.flightName)} report')">📤 Save &amp; Share</button>
+      <button style="flex:1" onclick="window.print()">🖨️ Print PDF</button>
+    </div>
+  </div>
+  <div class="card" id="reportCapture">
+    <h2 class="tab-report" style="text-align:center;font-size:18px">${escapeHtml(fl.flightName)} — Shuttle Cost Sheet</h2>
+    <p class="sub" style="text-align:center">${title}${fl.currentAdmin ? ` · Printed by ${escapeHtml(fl.currentAdmin.name)}` : ""}</p>
+    ${sessions.length ? `<div class="table-scroll"><table class="report">
+      <thead>
+      <tr><th rowspan="2" style="width:38px">S.No</th><th rowspan="2">Name</th>${header}
+        <th rowspan="8" style="width:100px;color:#3a2b00">Amount<br>to Pay</th></tr>
+      <tr>${sessions.map(()=>`<th></th><th></th>`).join("")}</tr></thead>
+      <tbody>
+        ${metric("No. of Shuttles Used", s => s.shuttlesUsed)}
+        ${metric("No. of Players Present", s => s.presentIds.length)}
+        ${metric("No. of Players Absent", s => members.length - s.presentIds.length)}
+        ${metric("Shuttle Cost", s => bhd(s.totalCostFils))}
+        ${metric("Each Share", s => bhd(Math.round(s.totalCostFils / s.presentIds.length)))}
+        ${body}
+      </tbody><tfoot>${footer}</tfoot></table></div>`
+      : `<p class="muted" style="text-align:center;padding:30px">No games in this period.</p>`}
+  </div>`;
+}
+function setPeriod(v){ PERIOD = v; render(); }
+function setAnchor(v){ ANCHOR = v; render(); }
+
+(async function boot(){
+  const params = new URLSearchParams(location.search);
+  const publicToken = params.get("p");
+  if(publicToken){ await renderPublicView(publicToken); return; }
+
+  if(getToken()){
+    try{
+      await refreshFlight();
+      if(STATE.fl?.currentAdmin?.mustChangePin){ STATE.page = "mustChangePin"; }
+    }catch{}
+  }
+  render();
+})();
+</script>
+</body>
+</html>
